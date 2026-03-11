@@ -1,0 +1,392 @@
+---
+title: 'Batch Threat Model Generation'
+description: 'Generate multiple threat models programmatically for research and comparative analysis'
+---
+
+# Batch Threat Model Generation
+
+The `main-batch.py` script enables automated generation of multiple threat models for research purposes, validation studies, and comparative analysis. This tool was developed to facilitate large-scale empirical validation of AegisShield's threat modeling capabilities.
+
+## Overview
+
+Batch generation allows you to:
+- Automate creation of multiple threat models for case studies
+- Generate structured outputs for rigorous comparative analysis
+- Conduct research validation across diverse scenarios
+- Produce consistent threat models at scale
+
+<Warning>
+The `main-batch.py` script is designed for **research purposes**. Regular users should use the interactive Streamlit interface (`main.py`) for threat modeling.
+</Warning>
+
+## How It Works
+
+The batch script programmatically replicates the interactive UI workflow:
+
+<Steps>
+  <Step title="Load Application Details">
+    Reads structured JSON input files from `batch_inputs/` directory containing:
+    - Application description
+    - Technology stack and versions
+    - Industry sector and compliance requirements
+    - Authentication methods
+    - Sensitivity and exposure parameters
+  </Step>
+
+  <Step title="Fetch Threat Intelligence">
+    Automatically retrieves data from:
+    - **AlienVault OTX**: Industry-specific threat intelligence
+    - **NVD**: Technology-specific vulnerabilities
+    - **MITRE ATT&CK**: Tactics and techniques (fetched during threat generation)
+  </Step>
+
+  <Step title="Generate Threat Models">
+    For each batch iteration:
+    - Creates threat model prompt with context
+    - Calls GPT-4o to generate 18 STRIDE-based threats (3 per category)
+    - Validates threat model structure
+    - Fetches and processes MITRE ATT&CK mappings
+  </Step>
+
+  <Step title="Save Structured Output">
+    Writes results to `batch_outputs/` directory as JSON files with:
+    - Case study and batch numbers
+    - Complete threat details with assumptions and impacts
+    - MITRE ATT&CK technique mappings
+  </Step>
+</Steps>
+
+## Batch Input Structure
+
+Input files are JSON schemas located in `batch_inputs/` directory:
+
+```json
+{
+    "app_input": "Detailed application description...",
+    "app_type": "IoT Application",
+    "industry_sector": "Telecommunications",
+    "sensitive_data": "Medium",
+    "internet_facing": "Yes",
+    "num_employees": "Unknown",
+    "compliance_requirements": [],
+    "technical_ability": "Low",
+    "authentication": [],
+    "selected_technologies": {},
+    "selected_versions": {}
+}
+```
+
+### Key Fields
+
+| Field | Description | Example |
+|-------|-------------|--------|
+| `app_input` | Comprehensive application description | "The system is a voice-based application with IoT integration..." |
+| `app_type` | Type of application | "Web Application", "IoT Application", "AI/ML Application" |
+| `industry_sector` | Industry domain | "Healthcare", "Finance", "Telecommunications" |
+| `sensitive_data` | Data sensitivity level | "High", "Medium", "Low" |
+| `internet_facing` | Internet exposure | "Yes", "No" |
+| `technical_ability` | Organization's security maturity | "High", "Medium", "Low" |
+| `selected_technologies` | Technology CPE mappings | `{"PostgreSQL": "cpe:2.3:a:postgresql:postgresql"}` |
+| `selected_versions` | Technology versions | `{"PostgreSQL": "14.0"}` |
+
+## Batch Output Structure
+
+Output files are saved in `batch_outputs/` as JSON arrays:
+
+```json
+[
+    {
+        "case_number": "1",
+        "batch_number": "1",
+        "threats": [
+            {
+                "Threat Type": "Spoofing",
+                "Scenario": "Description of threat scenario",
+                "Assumptions": [
+                    {
+                        "Assumption": "Security condition",
+                        "Role": "System component",
+                        "Condition": "State or requirement"
+                    }
+                ],
+                "Potential Impact": "Impact description",
+                "MITRE ATT&CK Keywords": ["keyword1", "keyword2"],
+                "mitre_technique": {
+                    "name": "Technique Name",
+                    "description": "Technique description",
+                    "id": "attack-pattern--uuid",
+                    "technique_id": "T1XXX"
+                }
+            }
+        ]
+    }
+]
+```
+
+## Configuration
+
+Edit the global variables in `main-batch.py`:
+
+```python
+# Number of threat models to generate per case study
+batches = 30
+
+# Number of parallel processing threads
+workers = 3
+
+# Number of retry attempts for failed API calls
+retries = 6
+
+# Run specific case study (or None for all)
+SPECIFIC_CASE_STUDY = None  # Set to 1-15 for single case study
+```
+
+## Running Batch Generation
+
+<CodeGroup>
+```bash All Case Studies
+# Generate threat models for all 15 case studies
+python main-batch.py
+```
+
+```bash Single Case Study
+# Edit main-batch.py first:
+# SPECIFIC_CASE_STUDY = 5
+
+python main-batch.py
+```
+
+```bash Custom Configuration
+# Modify batches and workers in main-batch.py
+batches = 10
+workers = 5
+
+python main-batch.py
+```
+</CodeGroup>
+
+## Research Use Cases
+
+### 1. Validation Studies
+Generate multiple threat models for the same application to:
+- Assess consistency of AI-generated threats
+- Compare against expert-developed models
+- Measure quality metrics across iterations
+
+### 2. Comparative Analysis
+Analyze threat models across:
+- Different application types (web, IoT, AI/ML)
+- Various industry sectors (healthcare, finance, government)
+- Multiple complexity levels
+
+### 3. Data Collection
+Build datasets for:
+- Machine learning model training
+- Threat pattern analysis
+- Security metric development
+
+### 4. Performance Testing
+Evaluate:
+- API response times
+- Error rates and retry logic
+- Parallel processing efficiency
+
+## Validation Logic
+
+The script validates each generated threat model:
+
+```python
+def validate_threat_model(threat_model):
+    """
+    Ensures exactly 18 threats with 3 from each STRIDE category.
+    """
+    stride_categories = {
+        "Spoofing": 0,
+        "Tampering": 0,
+        "Repudiation": 0,
+        "Information Disclosure": 0,
+        "Denial of Service": 0,
+        "Elevation of Privilege": 0
+    }
+    
+    for threat in threat_model:
+        threat_type = threat.get("Threat Type", "").strip()
+        if threat_type in stride_categories:
+            stride_categories[threat_type] += 1
+    
+    return all(count == 3 for count in stride_categories.values())
+```
+
+If validation fails, the script automatically retries up to `retries` times.
+
+## Error Handling
+
+Errors are logged to `error_log.txt`:
+
+```python
+# View errors during processing
+tail -f error_log.txt
+
+# Check for specific case study errors
+grep "Case Study 5" error_log.txt
+```
+
+### Common Issues
+
+<Accordion title="API Rate Limiting">
+  **Problem**: OpenAI API rate limits exceeded
+  
+  **Solution**:
+  - Reduce `workers` to 1 or 2
+  - Increase retry delays in exponential backoff
+  - Use a higher-tier API key with increased limits
+</Accordion>
+
+<Accordion title="Invalid Threat Models">
+  **Problem**: Generated models don't meet validation criteria
+  
+  **Solution**:
+  - Check API key and model availability
+  - Verify input JSON structure is correct
+  - Review threat model prompt for clarity
+  - Increase `retries` for more attempts
+</Accordion>
+
+<Accordion title="Missing MITRE Data">
+  **Problem**: MITRE ATT&CK data not fetched
+  
+  **Solution**:
+  ```bash
+  # Verify MITRE data files exist
+  ls MITRE_ATTACK_DATA/
+  
+  # Should contain:
+  # - enterprise-attack.json
+  # - mobile-attack.json  
+  # - ics-attack.json
+  ```
+</Accordion>
+
+<Accordion title="Memory Issues">
+  **Problem**: Out of memory with parallel processing
+  
+  **Solution**:
+  - Reduce `workers` to 1-2
+  - Process case studies individually
+  - Increase system swap space
+</Accordion>
+
+## Performance Optimization
+
+### Parallel Processing
+
+The script uses `ThreadPoolExecutor` for concurrent batch generation:
+
+```python
+with ThreadPoolExecutor(max_workers=workers) as executor:
+    futures = [
+        executor.submit(
+            process_batch, 
+            case_number, 
+            batch_iteration, 
+            app_details, 
+            nvd_vulnerabilities, 
+            otx_vulnerabilities
+        )
+        for batch_iteration in range(1, batches + 1)
+    ]
+```
+
+**Recommendations**:
+- **workers=3**: Balanced performance for most systems
+- **workers=1**: Maximum reliability, slower processing
+- **workers=5+**: Faster but may hit API rate limits
+
+### Retry Strategy
+
+Exponential backoff for failed operations:
+
+```python
+for attempt in range(retries):
+    try:
+        # Attempt operation
+        result = fetch_data()
+        break
+    except Exception as e:
+        if attempt < retries - 1:
+            time.sleep(2 ** attempt)  # 1s, 2s, 4s, 8s, 16s, 32s
+        else:
+            log_error(case_study, batch_number, str(e))
+```
+
+## Output Analysis
+
+After batch generation, analyze results:
+
+<CodeGroup>
+```python Count Threats by Category
+import json
+
+with open('batch_outputs/Case-Study-1-results.json') as f:
+    data = json.load(f)
+
+for batch in data:
+    threat_types = {}
+    for threat in batch['threats']:
+        t_type = threat['Threat Type']
+        threat_types[t_type] = threat_types.get(t_type, 0) + 1
+    print(f"Batch {batch['batch_number']}: {threat_types}")
+```
+
+```python Extract MITRE Techniques
+import json
+
+with open('batch_outputs/Case-Study-1-results.json') as f:
+    data = json.load(f)
+
+techniques = set()
+for batch in data:
+    for threat in batch['threats']:
+        tech_id = threat['mitre_technique'].get('technique_id')
+        if tech_id:
+            techniques.add(tech_id)
+
+print(f"Unique MITRE techniques: {len(techniques)}")
+print(techniques)
+```
+
+```bash Validate All Outputs
+# Check all output files exist
+for i in {1..15}; do
+  if [ -f "batch_outputs/Case-Study-${i}-results.json" ]; then
+    count=$(jq 'length' "batch_outputs/Case-Study-${i}-results.json")
+    echo "Case Study $i: $count batches"
+  else
+    echo "Case Study $i: MISSING"
+  fi
+done
+```
+</CodeGroup>
+
+## Research Context
+
+For the AegisShield validation study, batch generation was used to:
+
+- Generate **30 batches** across **15 case studies**
+- Produce **540 total threat models** (30 × 18 threats each)
+- Enable systematic comparison with expert-developed models
+- Support Qualitative Comparative Analysis (QCA)
+- Validate AI threat modeling effectiveness
+
+See [Research Methodology](/guides/research-methodology) for more details.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Case Studies" icon="microscope" href="/guides/case-studies">
+    Explore the 15 case studies used for validation
+  </Card>
+  <Card title="Research Methodology" icon="book" href="/guides/research-methodology">
+    Learn about the empirical validation approach
+  </Card>
+</CardGroup>

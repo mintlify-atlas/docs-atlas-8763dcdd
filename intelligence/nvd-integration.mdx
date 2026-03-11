@@ -1,0 +1,371 @@
+---
+title: 'NVD Integration'
+description: 'Integrate with the National Vulnerability Database (NVD) API for real-time CVE discovery and assessment'
+icon: 'shield-virus'
+---
+
+## Overview
+
+AegisShield integrates with the **National Vulnerability Database (NVD)** operated by NIST to provide real-time vulnerability intelligence for your threat models. The NVD integration automatically discovers Common Vulnerabilities and Exposures (CVEs) associated with the technologies used in your application.
+
+### What NVD Provides
+
+The NVD is the U.S. government repository of standards-based vulnerability management data. It provides:
+
+- **CVE Records**: Comprehensive vulnerability information with unique identifiers
+- **CVSS Scores**: Common Vulnerability Scoring System ratings (0-10 scale)
+- **CPE Matching**: Common Platform Enumeration for precise technology identification
+- **Temporal Data**: Published and modified dates for tracking vulnerability timelines
+- **Detailed Descriptions**: Technical details about each vulnerability
+
+### NIST SP 800-53 Compliance
+
+The NVD integration implements several NIST SP 800-53 Rev. 5 security controls:
+
+- **SI-7**: Software, Firmware, and Information Integrity - Vulnerability assessment and monitoring
+- **RA-5**: Vulnerability Scanning - Automated vulnerability identification via NVD
+- **SC-7**: Boundary Protection - External API communication security
+- **AU-3**: Content of Audit Records - API interaction logging
+- **SI-4**: Information System Monitoring - Continuous vulnerability monitoring
+
+## Implementation Architecture
+
+### Core Components
+
+The NVD integration consists of three main components:
+
+1. **CPE Name Resolution** (`fetch_cpe_name`) - Maps technology names to standardized CPE identifiers
+2. **CVE Search** (`search_nvd`) - Queries NVD for vulnerabilities matching the CPE
+3. **Retry Logic** (`retry_with_backoff`) - Handles API failures with exponential backoff
+
+### Configuration
+
+The integration uses a dataclass-based configuration system:
+
+```python nvd_search.py
+@dataclass
+class NVDConfig:
+    """Configuration settings for NVD API operations."""
+    max_retries: int = 3
+    initial_delay: float = 1.0
+    default_top_n: int = 10
+```
+
+<Note>
+  Default configuration retrieves the top 10 CVEs sorted by CVSS score and published date.
+</Note>
+
+## API Usage
+
+### Fetching CPE Names
+
+The first step in NVD integration is resolving a technology to its CPE name:
+
+<CodeGroup>
+
+```python Basic Usage
+from nvd_search import fetch_cpe_name
+
+# Fetch CPE for a specific technology
+cpe_name = fetch_cpe_name(
+    api_key="your_nvd_api_key",
+    cpe_prefix="cpe:2.3:a:apache:tomcat:",
+    version="9.0.0"
+)
+# Returns: "cpe:2.3:a:apache:tomcat:9.0.0:*:*:*:*:*:*:*"
+```
+
+```python Wildcard Version
+from nvd_search import fetch_cpe_name
+
+# Fetch CPE for any version
+cpe_name = fetch_cpe_name(
+    api_key="your_nvd_api_key",
+    cpe_prefix="cpe:2.3:a:apache:tomcat:",
+    version="*"  # Match any version
+)
+```
+
+</CodeGroup>
+
+### CPE Deprecation Handling
+
+The integration automatically handles deprecated CPEs:
+
+```python nvd_search.py
+cpe = cpe_results[0]
+if cpe.deprecated and cpe.deprecatedBy:
+    cpe_name = cpe.deprecatedBy[0].cpeName
+else:
+    cpe_name = cpe.cpeName
+```
+
+When a CPE has been deprecated, the system automatically uses the replacement CPE name to ensure accurate results.
+
+### Searching for Vulnerabilities
+
+Once you have a CPE name, search for associated CVEs:
+
+<CodeGroup>
+
+```python Full Search
+from nvd_search import search_nvd
+
+results = search_nvd(
+    api_key="your_nvd_api_key",
+    cpe_name="cpe:2.3:a:apache:tomcat:",
+    version="9.0.0",
+    tech="Apache Tomcat",
+    category="Application Server",
+    top_n=10
+)
+```
+
+```python Custom Configuration
+from nvd_search import search_nvd, NVDConfig
+
+# Create custom configuration
+config = NVDConfig(
+    max_retries=5,
+    initial_delay=2.0,
+    default_top_n=20
+)
+
+results = search_nvd(
+    api_key="your_nvd_api_key",
+    cpe_name="cpe:2.3:a:apache:tomcat:",
+    version="9.0.0",
+    tech="Apache Tomcat",
+    category="Application Server",
+    top_n=20,
+    config=config
+)
+```
+
+</CodeGroup>
+
+## Data Processing
+
+### CVE Sorting and Ranking
+
+The integration sorts CVEs by two criteria to prioritize the most critical vulnerabilities:
+
+```python nvd_search.py
+# Sort results by CVSS score and published date
+sorted_results = sorted(
+    cve_results,
+    key=lambda x: (x.score, x.published),
+    reverse=True
+)
+
+return sorted_results[:top_n]
+```
+
+### Response Format
+
+The integration returns formatted vulnerability data:
+
+```python nvd_search.py
+cve_entry = f"""Apache Tomcat NVD 1
+CVE ID: {cve_id}
+Technology: {tech}
+Category: {category}
+Version: {version}
+CVSS Score: {cvss_score}
+Published Date: {published_date}
+Description: {description.replace('\\n', ' ').replace('/', '-')}|"""
+```
+
+<Accordion title="Example Response Format">
+```text
+Apache Tomcat NVD 1
+CVE ID: CVE-2023-12345
+Technology: Apache Tomcat
+Category: Application Server
+Version: 9.0.0
+CVSS Score: 7.5
+Published Date: 2023-01-15
+Description: Apache Tomcat 9.0.0 contains a vulnerability that allows remote attackers to execute arbitrary code via crafted requests.|
+
+Apache Tomcat NVD 2
+CVE ID: CVE-2023-12346
+Technology: Apache Tomcat
+Category: Application Server
+Version: 9.0.0
+CVSS Score: 6.8
+Published Date: 2023-02-20
+Description: Information disclosure vulnerability in Apache Tomcat 9.0.0.|
+
+Total vulnerabilities found: 2
+```
+</Accordion>
+
+## Error Handling
+
+### Retry with Exponential Backoff
+
+The integration implements resilient API communication:
+
+```python nvd_search.py
+def retry_with_backoff(func, config: NVDConfig | None = None):
+    config = config or NVDConfig()
+    delay = config.initial_delay
+    
+    for attempt in range(config.max_retries):
+        try:
+            return func()
+        except (RequestException, Timeout) as e:
+            if attempt < config.max_retries - 1:
+                logger.warning(f"Attempt {attempt + 1} failed: {str(e)}. Retrying in {delay} seconds...")
+                time.sleep(delay)
+                delay *= 2  # Exponential backoff
+            else:
+                handle_exception(NVDAPIError(f"Failed after {config.max_retries} attempts. Last error: {str(e)}"), "NVD API request failed")
+```
+
+### Specific Error Cases
+
+<CodeGroup>
+
+```python Timeout Handling
+try:
+    cpe_results = nvdlib.searchCPE(
+        cpeMatchString=cpe_match_string,
+        key=api_key
+    )
+except Timeout:
+    handle_exception(
+        NVDAPIError(f"Timeout while fetching CPE for {cpe_prefix}"),
+        "NVD API timeout"
+    )
+```
+
+```python Rate Limiting
+try:
+    cve_results = nvdlib.searchCVE(cpeName=cpe_name, key=api_key)
+except HTTPError as e:
+    if e.response.status_code == 429:
+        handle_exception(
+            NVDAPIError("Rate limit exceeded. Please wait before making more requests."),
+            "NVD API rate limit exceeded"
+        )
+```
+
+```python No Results
+if not cpe_results:
+    handle_exception(
+        NVDAPIError(f"No CPE found for {cpe_prefix} version {version}"),
+        "No CPE found"
+    )
+```
+
+</CodeGroup>
+
+## Setup and Configuration
+
+### Prerequisites
+
+1. **NVD API Key**: Obtain a free API key from [NVD API Registration](https://nvd.nist.gov/developers/request-an-api-key)
+2. **Python Dependencies**:
+   ```bash
+   pip install nvdlib requests
+   ```
+
+### Environment Configuration
+
+<Steps>
+  <Step title="Obtain API Key">
+    Register for a free NVD API key at [nvd.nist.gov/developers](https://nvd.nist.gov/developers/request-an-api-key)
+  </Step>
+  
+  <Step title="Store API Key Securely">
+    Add your API key to environment variables or a secure configuration file:
+    ```bash
+    export NVD_API_KEY="your_api_key_here"
+    ```
+  </Step>
+  
+  <Step title="Configure Logging">
+    The integration uses Python's logging module:
+    ```python
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    ```
+  </Step>
+</Steps>
+
+### API Key Security
+
+The integration never logs full API keys:
+
+```python nvd_search.py
+# Mask API key for security - never log sensitive credentials
+masked_key = f"{api_key[:8]}..." if api_key and len(api_key) > 8 else "***"
+```
+
+<Warning>
+  Never commit API keys to version control. Always use environment variables or secure configuration management.
+</Warning>
+
+## Rate Limiting
+
+The NVD API has rate limits:
+
+- **Without API Key**: 5 requests per 30 seconds
+- **With API Key**: 50 requests per 30 seconds
+
+The integration automatically handles rate limiting with exponential backoff. If you receive a 429 error, the system will:
+
+1. Wait with increasing delays (1s, 2s, 4s)
+2. Retry up to 3 times (configurable)
+3. Log detailed error information
+
+## Testing
+
+The integration includes comprehensive tests:
+
+```python test_nvd_search.py
+def test_fetch_cpe_name_deprecated():
+    """Test fetching a CPE name when the result is deprecated"""
+    mock_cpe = MagicMock()
+    mock_cpe.deprecated = True
+    mock_cpe.deprecatedBy = [MagicMock(cpeName="cpe:2.3:a:deprecated:test:1.0:*:*:*:*:*:*:*")]
+    mock_cpe.cpeName = "cpe:2.3:a:original:test:1.0:*:*:*:*:*:*:*"
+    
+    mock_search_cpe.return_value = [mock_cpe]
+    result = fetch_cpe_name("test-key", "cpe:2.3:a:original:test:")
+    
+    assert result == "cpe:2.3:a:deprecated:test:1.0:*:*:*:*:*:*:*"
+```
+
+Run tests with:
+```bash
+pytest tests/test_nvd_search.py -v
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Specific Versions" icon="bullseye">
+    Specify exact version numbers when possible for more accurate results
+  </Card>
+  
+  <Card title="Cache Results" icon="database">
+    Cache CPE lookups to minimize API calls and improve performance
+  </Card>
+  
+  <Card title="Monitor Rate Limits" icon="gauge">
+    Track API usage to stay within rate limits, especially for bulk operations
+  </Card>
+  
+  <Card title="Update Regularly" icon="rotate">
+    Query NVD periodically to discover newly published vulnerabilities
+  </Card>
+</CardGroup>
+
+## Additional Resources
+
+- [NVD Official Documentation](https://nvd.nist.gov/developers)
+- [CPE Specification](https://nvd.nist.gov/products/cpe)
+- [CVSS Calculator](https://nvd.nist.gov/vuln-metrics/cvss)
+- [nvdlib Library Documentation](https://pypi.org/project/nvdlib/)

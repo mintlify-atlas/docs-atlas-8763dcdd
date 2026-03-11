@@ -1,0 +1,435 @@
+---
+title: "Security Test Cases"
+description: "Automated generation of Gherkin-formatted security test cases for comprehensive threat validation"
+---
+
+# Security Test Cases
+
+AegisShield automatically generates security test cases in Gherkin format (Given-When-Then) that can be directly integrated into your testing framework to validate defenses against identified threats.
+
+## Overview
+
+The test case module (`test_cases.py`) transforms STRIDE threats into executable test scenarios using behavior-driven development (BDD) syntax.
+
+<CardGroup cols={3}>
+  <Card title="Gherkin Format" icon="file-code">
+    Industry-standard BDD syntax
+  </Card>
+  <Card title="Threat-Based" icon="shield">
+    Each test validates a specific threat
+  </Card>
+  <Card title="Framework Ready" icon="check">
+    Compatible with Cucumber, Behave, pytest-bdd
+  </Card>
+</CardGroup>
+
+## Gherkin Syntax
+
+Gherkin uses a simple, human-readable format:
+
+```gherkin Basic structure
+Feature: User Authentication Security
+
+  Scenario: Prevent brute force attacks
+    Given the login endpoint is accessible
+    When a user attempts to login with invalid credentials 10 times
+    Then the account should be locked
+    And subsequent login attempts should be blocked for 30 minutes
+```
+
+<Accordion title="Gherkin Keywords" icon="key">
+  - **Feature:** High-level description of functionality
+  - **Scenario:** Specific test case
+  - **Given:** Initial context or preconditions
+  - **When:** Action or event
+  - **Then:** Expected outcome
+  - **And/But:** Additional steps
+</Accordion>
+
+## Core Functions
+
+### get_test_cases()
+
+Generates Gherkin test cases for all threats.
+
+<ParamField path="api_key" type="str" required>
+  OpenAI API key
+</ParamField>
+
+<ParamField path="model_name" type="str" default="gpt-4o">
+  OpenAI model to use
+</ParamField>
+
+<ParamField path="prompt" type="str" required>
+  Formatted test case prompt
+</ParamField>
+
+**Returns:** `str` - Gherkin test cases in Markdown format
+
+```python test_cases.py:47-93
+from test_cases import get_test_cases, create_test_cases_prompt
+
+# Create prompt from threats
+prompt = create_test_cases_prompt(threat_markdown)
+
+# Generate test cases
+test_cases = get_test_cases(
+    api_key=openai_key,
+    model_name="gpt-4o",
+    prompt=prompt
+)
+
+# Display
+print(test_cases)
+```
+
+### create_test_cases_prompt()
+
+Creates a prompt for generating threat-specific test cases.
+
+<ParamField path="threats" type="str" required>
+  Markdown-formatted threat model
+</ParamField>
+
+**Returns:** `str` - Formatted prompt
+
+```python Prompt creation from test_cases.py:14-45
+prompt = create_test_cases_prompt(
+    threats="""| Threat Type | Scenario | ... |
+    |-------------|----------|-----|
+    | Spoofing | Attacker could... | ... |"""
+)
+```
+
+## System Prompt
+
+The AI uses specific instructions to generate test cases:
+
+```text From test_cases.py:25-44
+Act as a cyber security expert with more than 20 years experience of using the STRIDE 
+threat modelling methodology. Your task is to provide Gherkin test cases for the threats 
+identified in a threat model. It is very important that your responses are tailored to 
+reflect the details of the threats.
+
+Below is the list of identified threats:
+{threats}
+
+Use the threat descriptions in the 'Given' steps so that the test cases are specific to 
+the threats identified. Put the Gherkin syntax inside triple backticks (```) to format 
+the test cases in Markdown. Add a title for each test case.
+
+For example:
+    ```gherkin
+    Given a user with a valid account
+    When the user logs in
+    Then the user should be able to access the system
+    ```
+
+YOUR RESPONSE (do not add introductory text, just provide the Gherkin test cases):
+```
+
+## Example Output
+
+Generated test cases for a web application:
+
+```gherkin Spoofing test cases
+### Test Case 1: Prevent OAuth2 Provider Spoofing
+
+```gherkin
+Feature: OAuth2 Authentication Security
+
+  Scenario: Detect fake OAuth2 provider
+    Given the application uses OAuth2 for authentication
+    And the legitimate OAuth2 provider is at https://auth.example.com
+    When a user is redirected to a different OAuth2 endpoint
+    Then the application should reject the authentication
+    And the user should be warned about the suspicious redirect
+```
+
+### Test Case 2: Prevent Session Token Theft
+
+```gherkin
+Feature: Session Token Security
+
+  Scenario: Prevent session hijacking via XSS
+    Given a user is logged into the application
+    And the session token is stored in an HTTP-only cookie
+    When an attacker attempts to execute JavaScript to access the session token
+    Then the JavaScript should not be able to access the cookie
+    And the session should remain secure
+```
+
+### Test Case 3: SQL Injection Prevention
+
+```gherkin
+Feature: Database Query Security
+
+  Scenario: Prevent SQL injection in search functionality
+    Given the application has a search feature
+    When a user enters SQL injection payload "'; DROP TABLE users; --"
+    Then the query should be parameterized
+    And the malicious input should be treated as literal text
+    And no database tables should be modified
+```
+```
+
+<Note>
+Each test case is tailored to a specific threat from your threat model, making them immediately actionable.
+</Note>
+
+## Test Implementation
+
+Generated tests can be implemented in various frameworks.
+
+**pytest-bdd (Python):**
+
+```python
+from pytest_bdd import scenarios, given, when, then
+import requests
+
+scenarios('features/oauth_security.feature')
+
+@given('the application uses OAuth2 for authentication')
+def app_uses_oauth(test_app):
+    assert test_app.config['AUTH_METHOD'] == 'oauth2'
+
+@when('a user is redirected to a different OAuth2 endpoint')
+def redirect_to_fake_provider(test_client):
+    response = test_client.get('/auth/callback?provider=https://evil.com')
+    return response
+
+@then('the application should reject the authentication')
+def verify_rejection(response):
+    assert response.status_code == 403
+    assert 'invalid provider' in response.text.lower()
+```
+
+**Cucumber (JavaScript):**
+
+```javascript
+const { Given, When, Then } = require('@cucumber/cucumber');
+const assert = require('assert');
+
+Given('the application uses OAuth2 for authentication', function() {
+  this.authMethod = 'oauth2';
+});
+
+When('a user is redirected to a different OAuth2 endpoint', async function() {
+  this.response = await this.app.get('/auth/callback?provider=https://evil.com');
+});
+
+Then('the application should reject the authentication', function() {
+  assert.strictEqual(this.response.status, 403);
+});
+```
+
+**Behave (Python):**
+
+```python
+from behave import given, when, then
+
+@given('the application uses OAuth2 for authentication')
+def step_impl(context):
+    context.auth_method = 'oauth2'
+
+@when('a user is redirected to a different OAuth2 endpoint')
+def step_impl(context):
+    context.response = context.client.get('/auth/callback?provider=https://evil.com')
+
+@then('the application should reject the authentication')
+def step_impl(context):
+    assert context.response.status_code == 403
+```
+
+## Test Coverage
+
+Generated test cases cover all STRIDE categories:
+
+<AccordionGroup>
+  <Accordion title="Spoofing Tests" icon="mask">
+    - Identity verification
+    - Authentication bypass attempts
+    - Session hijacking
+    - Token theft
+    - Man-in-the-middle attacks
+  </Accordion>
+  
+  <Accordion title="Tampering Tests" icon="wrench">
+    - Input validation
+    - SQL injection
+    - Parameter manipulation
+    - File upload restrictions
+    - Data integrity checks
+  </Accordion>
+  
+  <Accordion title="Repudiation Tests" icon="clock-rotate-left">
+    - Audit logging
+    - Non-repudiation mechanisms
+    - Timestamp validation
+    - Digital signatures
+  </Accordion>
+  
+  <Accordion title="Information Disclosure Tests" icon="eye-slash">
+    - Access control enforcement
+    - Error message sanitization
+    - Data exposure prevention
+    - Debug mode security
+  </Accordion>
+  
+  <Accordion title="Denial of Service Tests" icon="ban">
+    - Rate limiting
+    - Resource exhaustion prevention
+    - Input size validation
+    - Timeout enforcement
+  </Accordion>
+  
+  <Accordion title="Elevation of Privilege Tests" icon="user-shield">
+    - Authorization checks
+    - Privilege escalation prevention
+    - Role-based access control
+    - API permission validation
+  </Accordion>
+</AccordionGroup>
+
+## Integration Workflow
+
+```python Complete workflow
+from threat_model import get_threat_model, json_to_markdown
+from test_cases import create_test_cases_prompt, get_test_cases
+
+# 1. Generate threat model
+threats = get_threat_model(api_key, "gpt-4o", threat_prompt)
+threat_markdown = json_to_markdown(threats["threat_model"], [])
+
+# 2. Generate test cases
+test_prompt = create_test_cases_prompt(threat_markdown)
+test_cases = get_test_cases(api_key, "gpt-4o", test_prompt)
+
+# 3. Save to feature files
+with open('features/security.feature', 'w') as f:
+    f.write(test_cases)
+
+# 4. Run tests
+import subprocess
+subprocess.run(['pytest', '--bdd', 'features/'])
+```
+
+## CI/CD Integration
+
+Include security tests in your pipeline:
+
+<CodeGroup>
+
+```yaml GitHub Actions
+name: Security Tests
+
+on: [push, pull_request]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: pip install pytest pytest-bdd
+      - name: Run security test cases
+        run: pytest --bdd features/security.feature
+```
+
+```yaml GitLab CI
+security_tests:
+  stage: test
+  image: python:3.12
+  script:
+    - pip install pytest pytest-bdd
+    - pytest --bdd features/security.feature
+  only:
+    - merge_requests
+    - main
+```
+
+```groovy Jenkins
+pipeline {
+    agent any
+    stages {
+        stage('Security Tests') {
+            steps {
+                sh 'pip install pytest pytest-bdd'
+                sh 'pytest --bdd features/security.feature'
+            }
+        }
+    }
+}
+```
+
+</CodeGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Implement Incrementally" icon="stairs">
+    Start with high-risk threats. Implement and validate tests for critical vulnerabilities first.
+  </Card>
+  
+  <Card title="Maintain Test Data" icon="database">
+    Use realistic test data but ensure it's non-production. Never use real user data in tests.
+  </Card>
+  
+  <Card title="Automate Execution" icon="robot">
+    Run security tests automatically on every commit or pull request.
+  </Card>
+  
+  <Card title="Update Regularly" icon="arrows-rotate">
+    Regenerate test cases when threat model changes or new threats are identified.
+  </Card>
+</CardGroup>
+
+## Test Reporting
+
+Most BDD frameworks provide detailed reports:
+
+```text Example pytest-bdd output
+============================= test session starts ==============================
+collected 18 items
+
+test_auth.py::test_prevent_oauth2_spoofing PASSED                       [  5%]
+test_auth.py::test_prevent_session_theft PASSED                         [ 11%]
+test_injection.py::test_sql_injection_prevention PASSED                  [ 16%]
+test_injection.py::test_xss_prevention PASSED                            [ 22%]
+test_access.py::test_authorization_enforcement PASSED                    [ 27%]
+test_access.py::test_privilege_escalation_prevention PASSED             [ 33%]
+test_dos.py::test_rate_limiting PASSED                                   [ 38%]
+test_dos.py::test_resource_exhaustion_prevention FAILED                  [ 44%]
+...
+
+=========================== 16 passed, 2 failed ===========================
+```
+
+<Warning>
+Failing security tests indicate real vulnerabilities. Prioritize fixing these before deploying.
+</Warning>
+
+## Error Handling
+
+The module includes error handling:
+
+```python Error handling from test_cases.py:63-67
+if not api_key:
+    handle_exception(
+        ValueError("OpenAI API key is required"), 
+        "OpenAI API key is required"
+    )
+
+if not prompt:
+    handle_exception(
+        ValueError("Prompt is required for test cases generation"),
+        "Prompt is required for test cases generation"
+    )
+```
+
+## Related Features
+
+- [Threat Modeling](/features/threat-modeling) - Generate STRIDE threats
+- [Risk Assessment](/features/risk-assessment) - Prioritize which tests to implement first
+- [Mitigations](/api/mitigations) - Understand what defenses tests should validate
+- [PDF Reports](/workflows/pdf-reports) - Include test cases in documentation

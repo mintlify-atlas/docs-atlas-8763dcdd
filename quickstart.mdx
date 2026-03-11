@@ -1,80 +1,236 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick Start"
+description: "Get up and running with AegisShield in 15 minutes"
 ---
 
-## Get started in three steps
+# Quick Start
 
-Get your documentation site running locally and make your first customization.
+Get your first threat model generated in just a few steps.
 
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Steps>
+  <Step title="Install Dependencies">
+    Install Python 3.12+ and required packages:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    <CodeGroup>
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    ```bash pip
+    pip install -r requirements.txt
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```bash pip3
+    pip3 install -r requirements.txt
+    ```
+    
+    ```bash venv
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    pip install -r requirements.txt
+    ```
+    
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Configure API Keys">
+    Create `local_config.py` with your API keys:
+    
+    ```python local_config.py
+    default_nvd_api_key = "YOUR_NVD_KEY"
+    default_openai_api_key = "YOUR_OPENAI_KEY"
+    default_alienvault_api_key = "YOUR_ALIENVAULT_KEY"
+    ```
+    
+    <Warning>
+    Never commit API keys to version control. Add `local_config.py` to your `.gitignore`.
+    </Warning>
+    
+    <AccordionGroup>
+      <Accordion title="Get OpenAI API Key">
+        1. Visit [OpenAI API Keys](https://platform.openai.com/api-keys)
+        2. Click "Create new secret key"
+        3. Copy the key (you won't see it again)
+        4. Cost: ~$0.10-0.50 per threat model
+      </Accordion>
+      
+      <Accordion title="Get NVD API Key">
+        1. Visit [NVD API Key Request](https://nvd.nist.gov/developers/request-an-api-key)
+        2. Fill out the form with your email
+        3. Check your email for the API key
+        4. Free with rate limits (5 requests/30s without key, 50/30s with key)
+      </Accordion>
+      
+      <Accordion title="Get AlienVault OTX API Key">
+        1. Create account at [AlienVault OTX](https://otx.alienvault.com/)
+        2. Go to Settings → API Integration
+        3. Copy your OTX Key
+        4. Free tier available
+      </Accordion>
+    </AccordionGroup>
+  </Step>
+  
+  <Step title="Launch Application">
+    Start the Streamlit interface:
+    
+    ```bash
+    streamlit run main.py
+    ```
+    
+    Navigate to `http://localhost:8501` in your browser.
+  </Step>
+  
+  <Step title="Create Your First Threat Model">
+    Follow the 7-step guided process:
+    
+    **Step 1: Describe Your Application**
+    - Enter a detailed description of your application
+    - Select application type (e.g., "Web application")
+    - Choose industry sector (e.g., "Finance")
+    - Specify authentication methods
+    - Indicate if internet-facing
+    - Classify sensitive data (High/Medium/Low)
+    
+    **Step 2: Select Technology Stack**
+    - Choose databases (e.g., PostgreSQL 14.0)
+    - Select operating systems (e.g., Ubuntu 20.04)
+    - Pick programming languages (e.g., Python 3.9)
+    - Add web frameworks (e.g., Django 4.0)
+    
+    **Step 3: Generate Threat Model**
+    - Click "Generate Threat Model"
+    - Wait 2-5 minutes for processing
+    - Review 18 STRIDE threats with MITRE ATT&CK mappings
+    
+    **Step 4: Review Mitigations**
+    - AI generates specific mitigation strategies
+    - Each threat gets tailored recommendations
+    
+    **Step 5: DREAD Risk Assessment**
+    - Threats scored on 5 dimensions (1-10 scale)
+    - Risk scores calculated automatically
+    - Threats sorted by priority
+    
+    **Step 6: Generate Test Cases**
+    - Gherkin-formatted security test cases
+    - Ready for pytest-bdd, Cucumber, or Behave
+    
+    **Step 7: Download PDF Report**
+    - Comprehensive 20-40 page document
+    - Includes all threats, mitigations, and test cases
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
+## What You Get
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="18 STRIDE Threats" icon="shield-halved">
+    3 threats per category with scenarios, impacts, and assumptions
+  </Card>
+  
+  <Card title="MITRE ATT&CK Mapping" icon="crosshairs">
+    Each threat mapped to real-world attack techniques
+  </Card>
+  
+  <Card title="CVE Data" icon="bug">
+    Vulnerabilities from NVD for your exact technology versions
+  </Card>
+  
+  <Card title="Threat Intelligence" icon="satellite-dish">
+    Industry-specific threats from AlienVault OTX
+  </Card>
+  
+  <Card title="Risk Scores" icon="chart-line">
+    DREAD methodology for threat prioritization
+  </Card>
+  
+  <Card title="Attack Trees" icon="sitemap">
+    Visual attack path diagrams in Mermaid
+  </Card>
+  
+  <Card title="Security Tests" icon="vial">
+    Gherkin test scenarios ready to implement
+  </Card>
+  
+  <Card title="PDF Report" icon="file-pdf">
+    Professional documentation for stakeholders
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Example Application Description
+
+```text
+Online banking platform with:
+- User authentication via OAuth2 and MFA
+- Account management and transaction history
+- Bill payment and fund transfers
+- Mobile app for iOS and Android
+- RESTful API for third-party integrations
+- PostgreSQL database for transaction records
+- Redis for session management
+- Deployed on AWS with ALB and Auto Scaling
+```
+
+## Quick Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="API Key Errors">
+    **Error:** "OpenAI API key is required"
+    
+    **Solution:** Ensure `local_config.py` exists in the project root with valid API keys.
+  </Accordion>
+  
+  <Accordion title="MITRE Data Not Found">
+    **Error:** "No MITRE ATT&CK data found"
+    
+    **Solution:** Verify `MITRE_ATTACK_DATA/` directory contains:
+    - `enterprise-attack.json`
+    - `mobile-attack.json`
+    - `ics-attack.json`
+  </Accordion>
+  
+  <Accordion title="Port Already in Use">
+    **Error:** "Port 8501 is already in use"
+    
+    **Solution:** Use a different port:
+    ```bash
+    streamlit run main.py --server.port 8502
+    ```
+  </Accordion>
+  
+  <Accordion title="Rate Limit Errors">
+    **Error:** "Rate limit exceeded"
+    
+    **Solution:** Wait 60 seconds and retry. Consider upgrading your OpenAI API tier for higher limits.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Full Installation Guide" icon="download" href="/installation">
+    Detailed setup instructions for all environments
+  </Card>
+  
+  <Card title="7-Step Process" icon="list-check" href="/workflows/seven-step-process">
+    Complete walkthrough of the threat modeling workflow
+  </Card>
+  
+  <Card title="Interpreting Results" icon="book-open" href="/guides/interpreting-results">
+    Understanding your threat model output
+  </Card>
+  
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Common issues and solutions
+  </Card>
+</CardGroup>
+
+## Time Estimates
+
+| Activity | Duration |
+|----------|----------|
+| Installation | 5-10 minutes |
+| API Key Setup | 5-10 minutes |
+| First Threat Model | 15-20 minutes |
+| **Total** | **25-40 minutes** |
+
+<Tip>
+Save time by having your application description and technology versions ready before starting.
+</Tip>

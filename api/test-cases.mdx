@@ -1,0 +1,303 @@
+---
+title: 'Test Cases'
+description: 'Generate Gherkin test cases from identified threats using AI'
+---
+
+## Overview
+
+The Test Cases module provides functionality to generate Gherkin-formatted test cases based on identified threats from the STRIDE threat modeling methodology. It uses OpenAI's API to create tailored test cases that reflect specific threat details.
+
+---
+
+## get_test_cases
+
+Generate test cases using OpenAI's API based on identified threats.
+
+```python
+get_test_cases(
+    api_key: str,
+    model_name: str | None = None,
+    prompt: str | None = None
+) -> str
+```
+
+### Parameters
+
+<ParamField path="api_key" type="str" required>
+  OpenAI API key for authentication. Must not be empty.
+</ParamField>
+
+<ParamField path="model_name" type="str | None" default="gpt-4o">
+  Name of the OpenAI model to use. If not provided, defaults to `"gpt-4o"`.
+</ParamField>
+
+<ParamField path="prompt" type="str | None" required>
+  Prompt for generating test cases. Should contain the identified threats. Use `create_test_cases_prompt()` to generate a properly formatted prompt.
+</ParamField>
+
+### Returns
+
+<ResponseField name="test_cases" type="str">
+  Generated Gherkin test cases in Markdown format. The test cases are formatted with triple backticks and include titles for each test case.
+</ResponseField>
+
+### Raises
+
+<ResponseField name="ValueError" type="Exception">
+  Raised if the API key is empty or if the prompt is empty.
+</ResponseField>
+
+<ResponseField name="Exception" type="Exception">
+  Raised if there's an error during the API call or response processing.
+</ResponseField>
+
+### Example Usage
+
+```python
+from test_cases import get_test_cases, create_test_cases_prompt
+
+# Define identified threats
+threats = """
+1. Spoofing: Attacker impersonates legitimate user
+2. Tampering: Unauthorized modification of data in transit
+3. Repudiation: User denies performing an action
+"""
+
+# Create the prompt
+prompt = create_test_cases_prompt(threats)
+
+# Generate test cases
+try:
+    test_cases = get_test_cases(
+        api_key="your-openai-api-key",
+        model_name="gpt-4o",
+        prompt=prompt
+    )
+    print(test_cases)
+except Exception as e:
+    print(f"Error generating test cases: {e}")
+```
+
+---
+
+## create_test_cases_prompt
+
+Create a prompt for generating Gherkin test cases based on identified threats.
+
+```python
+create_test_cases_prompt(threats: str) -> str
+```
+
+### Parameters
+
+<ParamField path="threats" type="str" required>
+  A string containing the list of identified threats. Should include threat descriptions that will be used in the 'Given' steps of the test cases.
+</ParamField>
+
+### Returns
+
+<ResponseField name="prompt" type="str">
+  A formatted prompt string for generating Gherkin test cases. The prompt instructs the AI to act as a cyber security expert with STRIDE methodology experience and provides formatting guidelines.
+</ResponseField>
+
+### Example Usage
+
+```python
+from test_cases import create_test_cases_prompt
+
+threats = """
+Threat 1: SQL Injection - Attacker can inject malicious SQL queries
+Threat 2: XSS Attack - Attacker can inject malicious scripts into web pages
+Threat 3: CSRF - Attacker can perform unauthorized actions on behalf of user
+"""
+
+prompt = create_test_cases_prompt(threats)
+print(prompt)
+```
+
+### Prompt Structure
+
+The generated prompt includes:
+
+1. **Role Definition**: Acts as a cyber security expert with 20+ years of STRIDE experience
+2. **Task Description**: Generate Gherkin test cases tailored to threat details
+3. **Threat List**: Includes the provided threats string
+4. **Formatting Instructions**: 
+   - Use threat descriptions in 'Given' steps
+   - Format with triple backticks (```gherkin)
+   - Add titles for each test case
+5. **Example Format**: Provides a sample Gherkin test case
+
+---
+
+## Complete Workflow Example
+
+### Step 1: Identify Threats
+
+```python
+# Threats identified from STRIDE analysis
+identified_threats = """
+1. Spoofing Identity:
+   - Threat: An attacker could impersonate a legitimate user by stealing credentials
+   - Impact: Unauthorized access to sensitive data
+   
+2. Tampering with Data:
+   - Threat: Data transmitted over unencrypted channels could be modified
+   - Impact: Data integrity compromise
+   
+3. Information Disclosure:
+   - Threat: Sensitive information exposed in error messages
+   - Impact: Exposure of system internals to attackers
+"""
+```
+
+### Step 2: Create Prompt
+
+```python
+from test_cases import create_test_cases_prompt
+
+prompt = create_test_cases_prompt(identified_threats)
+```
+
+### Step 3: Generate Test Cases
+
+```python
+import os
+from test_cases import get_test_cases
+from error_handler import handle_exception
+
+try:
+    api_key = os.getenv("OPENAI_API_KEY")
+    
+    test_cases = get_test_cases(
+        api_key=api_key,
+        model_name="gpt-4o",
+        prompt=prompt
+    )
+    
+    # Display or save the test cases
+    print("Generated Test Cases:")
+    print(test_cases)
+    
+except Exception as e:
+    handle_exception(e, "Failed to generate test cases. Please check your API key and try again.")
+```
+
+### Expected Output Format
+
+The generated test cases will be in Gherkin format:
+
+```gherkin
+# Test Case 1: Spoofing Identity
+
+Given an attacker has stolen user credentials
+When the attacker attempts to log in with stolen credentials
+Then the system should detect anomalous login behavior
+And the system should require additional authentication factors
+And the legitimate user should be notified of the login attempt
+
+# Test Case 2: Tampering with Data
+
+Given data is transmitted over the network
+When an attacker attempts to intercept and modify the data
+Then the system should detect the data integrity violation
+And the system should reject the tampered data
+And an alert should be logged for security review
+```
+
+---
+
+## Configuration
+
+### Default Model
+
+```python
+DEFAULT_MODEL_NAME = "gpt-4o"
+```
+
+The default OpenAI model used for generating test cases. Can be overridden by passing a different `model_name` to `get_test_cases()`.
+
+### Supported Models
+
+- `gpt-4o` (default)
+- `gpt-4-turbo`
+- `gpt-4`
+- `gpt-3.5-turbo`
+
+---
+
+## Integration with Error Handler
+
+The Test Cases module integrates with the Error Handler module for consistent error management:
+
+```python
+from error_handler import handle_exception
+
+if not api_key:
+    handle_exception(
+        ValueError("OpenAI API key is required"),
+        "OpenAI API key is required"
+    )
+    
+if not prompt:
+    handle_exception(
+        ValueError("Prompt is required for test cases generation"),
+        "Prompt is required for test cases generation"
+    )
+```
+
+This ensures that all errors are logged according to NIST SP 800-53 Rev. 5 controls and displayed appropriately to users.
+
+---
+
+## Best Practices
+
+### 1. Provide Detailed Threat Descriptions
+
+The more detailed your threat descriptions, the more specific and useful the generated test cases will be:
+
+```python
+# Good: Detailed threat description
+threats = """
+Spoofing: An attacker could forge authentication tokens by exploiting 
+weak JWT signature validation, allowing them to impersonate any user 
+in the system without proper credentials.
+"""
+
+# Less effective: Vague description
+threats = "Spoofing: User impersonation"
+```
+
+### 2. Use Environment Variables for API Keys
+
+```python
+import os
+
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise ValueError("OPENAI_API_KEY environment variable not set")
+```
+
+### 3. Handle Errors Gracefully
+
+```python
+try:
+    test_cases = get_test_cases(api_key, prompt=prompt)
+except ValueError as e:
+    handle_exception(e, "Invalid input provided")
+except Exception as e:
+    handle_exception(e, "Failed to generate test cases")
+```
+
+### 4. Log Generation Events
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+logger.info(f"Generating test cases for {len(threat_list)} threats")
+
+test_cases = get_test_cases(api_key, prompt=prompt)
+
+logger.info("Successfully generated test cases")
+```

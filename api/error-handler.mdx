@@ -1,0 +1,240 @@
+---
+title: 'Error Handler'
+description: 'Centralized error handling and logging for AegisShield'
+---
+
+## Overview
+
+The Error Handler module provides centralized exception management, comprehensive logging, and user-friendly error display functionality. It implements NIST SP 800-53 Rev. 5 security controls for audit logging and error handling.
+
+### NIST SP 800-53 Rev. 5 Controls
+
+- **AU-3**: Content of Audit Records - Comprehensive logging with timestamps and context
+- **AU-4**: Audit Storage Capacity - Log file management and storage
+- **AU-6**: Audit Review, Analysis, and Reporting - Error analysis and reporting
+- **AU-8**: Time Stamps - Timestamp generation for all logged events
+- **SI-11**: Error Handling - Systematic error handling and user notification
+
+---
+
+## handle_exception
+
+Centralized function to handle exceptions. Logs the error to both file and console, and displays a message to the user.
+
+```python
+handle_exception(exception: Exception, user_message: str = "An unexpected error occurred.") -> None
+```
+
+### Parameters
+
+<ParamField path="exception" type="Exception" required>
+  The exception that was caught and needs to be handled
+</ParamField>
+
+<ParamField path="user_message" type="str" default="An unexpected error occurred.">
+  A user-friendly message to display in the Streamlit UI. Should not contain sensitive information.
+</ParamField>
+
+### Returns
+
+<ResponseField name="return" type="None">
+  This function does not return a value. It logs the error and displays a message to the user.
+</ResponseField>
+
+### NIST Controls Implemented
+
+- **SI-11**: Error Handling - Centralized exception management
+- **AU-3**: Content of Audit Records - Complete exception context capture
+- **AU-6**: Audit Review - Error logging for analysis
+
+### Example Usage
+
+```python
+from error_handler import handle_exception
+
+try:
+    # Your code that might raise an exception
+    result = risky_operation()
+except Exception as e:
+    handle_exception(
+        e,
+        "Failed to complete the operation. Please try again."
+    )
+```
+
+---
+
+## log_error
+
+Logs the error details to both file and console with timestamp and traceback.
+
+```python
+log_error(error_message: str, additional_info: str | None = None) -> None
+```
+
+### Parameters
+
+<ParamField path="error_message" type="str" required>
+  The main error message to log
+</ParamField>
+
+<ParamField path="additional_info" type="str | None" default="None">
+  Any additional context or information about the error
+</ParamField>
+
+### Returns
+
+<ResponseField name="return" type="None">
+  This function does not return a value. It writes to log files and console.
+</ResponseField>
+
+### NIST Controls Implemented
+
+- **AU-3**: Content of Audit Records - Complete error context and metadata
+- **AU-8**: Time Stamps - Precise timestamp for each error event
+- **AU-6**: Audit Review - Structured format for analysis
+- **SI-11**: Error Handling - Comprehensive error capture and logging
+
+### Example Usage
+
+```python
+from error_handler import log_error
+
+log_error(
+    "Database connection failed",
+    additional_info="Connection timeout after 30 seconds"
+)
+```
+
+---
+
+## display_error_to_user
+
+Displays an error message to the user in the Streamlit UI.
+
+```python
+display_error_to_user(user_message: str) -> None
+```
+
+### Parameters
+
+<ParamField path="user_message" type="str" required>
+  The error message to display to the user. Should be user-friendly and not contain sensitive details.
+</ParamField>
+
+### Returns
+
+<ResponseField name="return" type="None">
+  This function does not return a value. It displays the error in the Streamlit interface.
+</ResponseField>
+
+### NIST Controls Implemented
+
+- **SI-11**: Error Handling - User-friendly error messages without sensitive details
+- **AU-6**: Audit Review - User notification as part of error handling process
+
+### Example Usage
+
+```python
+from error_handler import display_error_to_user
+
+display_error_to_user(
+    "Unable to load threat model. Please check your input and try again."
+)
+```
+
+---
+
+## setup_logging
+
+Set up logging configuration and create log directory if it doesn't exist.
+
+```python
+setup_logging() -> None
+```
+
+### Returns
+
+<ResponseField name="return" type="None">
+  This function does not return a value. It configures the logging system.
+</ResponseField>
+
+### NIST Controls Implemented
+
+- **AU-3**: Content of Audit Records - Structured logging format
+- **AU-4**: Audit Storage Capacity - Log directory creation and management
+- **AU-8**: Time Stamps - Timestamp format configuration
+
+### Example Usage
+
+```python
+from error_handler import setup_logging
+
+# Called automatically when the module is imported
+# Can be called manually if needed
+setup_logging()
+```
+
+---
+
+## Error Handling Patterns
+
+### Pattern 1: Simple Exception Handling
+
+Use `handle_exception()` for straightforward error handling with user feedback:
+
+```python
+try:
+    process_threat_model(data)
+except Exception as e:
+    handle_exception(e, "Failed to process threat model")
+```
+
+### Pattern 2: Detailed Error Logging
+
+Use `log_error()` when you need to log errors with additional context:
+
+```python
+try:
+    api_response = call_external_api()
+except ConnectionError as e:
+    log_error(
+        f"API connection failed: {str(e)}",
+        additional_info=f"Endpoint: {api_endpoint}, Retry: {retry_count}"
+    )
+    display_error_to_user("Unable to connect to external service")
+```
+
+### Pattern 3: User-Only Error Display
+
+Use `display_error_to_user()` for validation errors that don't need full logging:
+
+```python
+if not user_input:
+    display_error_to_user("Please provide input before submitting")
+    return
+```
+
+---
+
+## Configuration
+
+### Log Directory
+
+```python
+LOG_DIR = Path("logs")
+LOG_FILE = LOG_DIR / "error.log"
+```
+
+Logs are stored in the `logs/` directory with the filename `error.log`. The directory is created automatically if it doesn't exist.
+
+### Log Format
+
+```
+%(asctime)s - %(name)s - %(levelname)s - %(message)s
+```
+
+Example log entry:
+```
+2026-03-11 14:30:45 - error_handler - ERROR - [2026-03-11 14:30:45] ERROR: API call failed | Info: Connection timeout
+```

@@ -1,0 +1,356 @@
+---
+title: Technology Stack Selection
+description: Learn how to select and configure your technology stack for accurate vulnerability assessment and threat modeling
+---
+
+# Technology Stack Selection
+
+Step 2 of the threat modeling process collects detailed information about your application's technology stack. This enables AegisShield to identify specific vulnerabilities and generate targeted threat scenarios.
+
+## Required Information
+
+AegisShield requires several key pieces of information to generate an accurate threat model:
+
+### Core Application Details
+
+<Steps>
+  <Step title="Application Type">
+    Select the category that best describes your system.
+    
+    **Available options** (from `step2_technology.py:50-72`):
+    - 5G/Wireless System
+    - AI/ML Systems
+    - Blockchain and Cryptocurrency Systems
+    - Cloud application
+    - Cyber-Physical System (CPS)
+    - Desktop application
+    - Drone as a Service (DaaS) Application
+    - Embedded systems
+    - IoT application
+    - Mobile application
+    - Web application
+    - SaaS application
+    - And more...
+    
+    <Note>
+      This field is **required**. The application type determines which MITRE ATT&CK matrix is used for threat mapping.
+    </Note>
+  </Step>
+
+  <Step title="Industry Sector">
+    Choose your industry to enable sector-specific threat intelligence from AlienVault OTX.
+    
+    **Available sectors** (from `step2_technology.py:75-83`):
+    - Financial
+    - Healthcare
+    - Government
+    - Energy
+    - Telecommunications
+    - Manufacturing
+    - Retail
+    - Education
+    - And 23+ more sectors
+    
+    <Tip>
+      The industry sector is used to fetch relevant threat intelligence pulses from AlienVault OTX (`step3_threat_model.py:152-154`).
+    </Tip>
+  </Step>
+
+  <Step title="Data Sensitivity">
+    Indicate the sensitivity level of data your application handles.
+    
+    **Options:**
+    - **High** - PII, financial data, healthcare records, credentials
+    - **Medium** - Business data, internal communications
+    - **Low** - Public information, marketing content
+    - **None** - No sensitive data
+    
+    This affects DREAD risk scoring in Step 5.
+  </Step>
+
+  <Step title="Internet Facing">
+    Specify whether your application is accessible from the internet.
+    
+    **Options:** Yes / No
+    
+    <Warning>
+      Internet-facing applications have a larger attack surface and face more threats. This significantly impacts the threat model.
+    </Warning>
+  </Step>
+
+  <Step title="Number of Employees">
+    Select your organization size.
+    
+    **Options:**
+    - Unknown
+    - 0-10
+    - 11-100
+    - 101-1000
+    - Over 1000
+    
+    This helps assess the impact of threats (Affected Users in DREAD scoring).
+  </Step>
+</Steps>
+
+### Optional Context
+
+<Steps>
+  <Step title="Compliance Requirements">
+    Select applicable regulatory standards (from `step2_technology.py:101-106`):
+    
+    - **Healthcare:** HIPAA, FDA, ISO 13485
+    - **Financial:** PCI DSS, SOX, GLBA
+    - **Privacy:** GDPR, CCPA, COPPA, FERPA
+    - **Security:** ISO 27001, SOC 2, FedRAMP, FISMA
+    - **Industry-Specific:** IEC 62443, ISO/SAE 21434, FAA Regulations, ITAR
+    - **Telecommunications:** 3GPP TS 33.501
+    - **IoT:** ISO/IEC 30141
+    
+    Multiple selections allowed.
+  </Step>
+
+  <Step title="Authentication Methods">
+    Select all authentication mechanisms used (from `step2_technology.py:109-114`):
+    
+    - Active Directory (AD)
+    - API Key
+    - Basic Authentication
+    - Biometrics
+    - Firebase Authentication
+    - Hardware Tokens
+    - Multi-Factor Authentication (MFA)
+    - Mutual TLS (mTLS)
+    - OAuth2
+    - Passwords
+    - Public/Private Key Pairs
+    - Single Sign-On (SSO)
+    - Smart Cards
+    - None
+  </Step>
+</Steps>
+
+## Technology Stack Configuration
+
+This is where AegisShield's vulnerability detection becomes powerful. Each technology you select is matched against the National Vulnerability Database using CPE identifiers.
+
+### Available Technology Categories
+
+From `step2_technology.py:117-168`, AegisShield tracks four technology categories:
+
+#### 1. Databases
+
+| Technology | CPE Identifier |
+|------------|----------------|
+| MySQL | `cpe:2.3:a:mysql:mysql:` |
+| PostgreSQL | `cpe:2.3:a:postgresql:postgresql:` |
+| MS SQL Server | `cpe:2.3:a:microsoft:sql_server:` |
+| Oracle Database | `cpe:2.3:a:oracle:database:` |
+| Redis | `cpe:2.3:a:redislabs:redis:` |
+| Google Firestore | `cpe:2.3:a:google:cloud_firestore:` |
+| Snowflake | `cpe:2.3:a:snowflake:snowflake:` |
+| Scylla | `cpe:2.3:a:scylladb:scylla:` |
+
+#### 2. Operating Systems
+
+| Technology | CPE Identifier |
+|------------|----------------|
+| Windows | `cpe:2.3:o:microsoft:windows:` |
+| Ubuntu | `cpe:2.3:o:canonical:ubuntu_linux:` |
+| RHEL | `cpe:2.3:o:redhat:enterprise_linux:` |
+| macOS | `cpe:2.3:o:apple:macos:` |
+| Android | `cpe:2.3:o:google:android:` |
+| iOS | `cpe:2.3:o:apple:iphone_os:` |
+| Linux Kernel | `cpe:2.3:o:linux:linux_kernel:` |
+| Debian | `cpe:2.3:o:debian:debian_linux:` |
+
+#### 3. Programming Languages
+
+| Technology | CPE Identifier |
+|------------|----------------|
+| Python | `cpe:2.3:a:python:python:` |
+| JavaScript | `cpe:2.3:a:ecmascript:ecmascript:` |
+| Java | `cpe:2.3:a:oracle:jdk:` |
+| C# | `cpe:2.3:a:microsoft:.net_framework:` |
+| Go | `cpe:2.3:a:golang:go:` |
+| Ruby | `cpe:2.3:a:ruby-lang:ruby:` |
+| PHP | `cpe:2.3:a:php:php:` |
+
+#### 4. Web Frameworks
+
+| Technology | CPE Identifier |
+|------------|----------------|
+| Django | `cpe:2.3:a:django:django:` |
+| Flask | `cpe:2.3:a:palletsprojects:flask:` |
+| React | `cpe:2.3:a:facebook:react:` |
+| Angular | `cpe:2.3:a:google:angular:` |
+| Spring | `cpe:2.3:a:pivotal:spring_framework:` |
+| Express | `cpe:2.3:a:expressjs:express:` |
+| Laravel | `cpe:2.3:a:laravel:laravel:` |
+| Ruby on Rails | `cpe:2.3:a:rubyonrails:ruby_on_rails:` |
+
+## Understanding CPE and Version Tracking
+
+### What is CPE?
+
+CPE (Common Platform Enumeration) is a standardized naming scheme for IT systems, platforms, and packages. AegisShield uses CPE identifiers to search the National Vulnerability Database.
+
+**CPE Format:**
+```
+cpe:2.3:a:vendor:product:version:...
+```
+
+Where:
+- `a` = application, `o` = operating system, `h` = hardware
+- `vendor` = product vendor
+- `product` = product name
+- `version` = specific version
+
+### Version Specification
+
+When you select a technology, AegisShield prompts for the version. From `step2_technology.py:199-224`, version format validation ensures:
+
+**Valid version formats:**
+- Exact version: `4.0.0`, `8.1.2`, `1.2.3.4`
+- Wildcard versions: `4.0.*`, `8.*`, `*`
+- Maximum 4 segments: `1.2.3.4`
+
+**Version matching behavior:**
+```python
+# Exact version
+MySQL 8.0.35 → Searches for vulnerabilities in MySQL 8.0.35
+
+# Wildcard version  
+MySQL 8.0.* → Searches for vulnerabilities in all MySQL 8.0.x versions
+
+# Broad wildcard
+MySQL 8.* → Searches for vulnerabilities in all MySQL 8.x.x versions
+```
+
+<Tip>
+  From the UI documentation (`step2_technology.py:40-46`): "A wildcard search will generally pull the latest version associated with the first portions of the version number."
+</Tip>
+
+### Example: Version Selection
+
+<Steps>
+  <Step title="Select Technology">
+    In the **Databases** expander, select "MySQL" from the multiselect.
+  </Step>
+
+  <Step title="Specify Version">
+    A text input appears: "Specify version for MySQL"
+    
+    Enter your version:
+    - Production: `8.0.35` (exact version for precise results)
+    - Testing: `8.0.*` (all 8.0.x versions)
+    - Legacy: `5.7.44` (if using older version)
+  </Step>
+
+  <Step title="Validation">
+    AegisShield validates the format. Invalid formats show a warning:
+    
+    "Version should be in format: numbers or wildcards separated by dots"
+  </Step>
+
+  <Step title="CPE Construction">
+    Behind the scenes (`step2_technology.py:345-346`):
+    ```python
+    st.session_state['selected_versions']['MySQL'] = '8.0.35'
+    st.session_state['selected_technologies']['MySQL'] = 'cpe:2.3:a:mysql:mysql:'
+    ```
+  </Step>
+</Steps>
+
+## How Version Data is Used
+
+In Step 3, when you click "Generate Threat Model", AegisShield searches the NVD:
+
+From `step3_threat_model.py:136-142`:
+
+```python
+for tech, cpe_name in selected_technologies.items():
+    version = selected_versions.get(tech, "*")
+    vulnerabilities = search_nvd(nvd_api_key, cpe_name, version, tech)
+    if vulnerabilities:
+        nvd_vulnerabilities[f"{tech} {version}"] = vulnerabilities
+```
+
+**Example NVD Search:**
+- Technology: MySQL
+- CPE: `cpe:2.3:a:mysql:mysql:`
+- Version: `8.0.35`
+- Search: NVD for `cpe:2.3:a:mysql:mysql:8.0.35`
+- Results: CVE-2024-XXXX, CVE-2023-YYYY with CVSS scores and descriptions
+
+## Technology Summary View
+
+As you select technologies, AegisShield displays a live summary (from `step2_technology.py:360-364`):
+
+```markdown
+📋 Selected Technologies Summary
+- **MySQL**: 8.0.35
+- **Ubuntu**: 22.04
+- **Python**: 3.11.0
+- **Flask**: 2.3.*
+- **React**: 18.2.0
+```
+
+This summary helps you verify selections before generating the threat model.
+
+## Why Accurate Technology Information Matters
+
+From `step2_technology.py:30-37`, providing detailed technology information:
+
+1. **Identifies relevant threats** specific to your technologies
+2. **Offers tailored mitigation strategies** for your setup
+3. **Enhances security posture** by addressing specific vulnerabilities
+4. **Enables NVD integration** for known CVE lookup
+5. **Improves MITRE mapping** with technology-specific TTPs
+
+<Warning>
+  Wildcard versions like `*` or `8.*` may pull vulnerabilities from a broader range of versions, potentially including issues from older or newer versions that don't affect your specific deployment. Use exact versions when possible for accuracy.
+</Warning>
+
+## Real-World Example
+
+Let's configure a typical web application:
+
+**Application Details:**
+- **Type:** Web application
+- **Industry:** Financial
+- **Data Sensitivity:** High
+- **Internet Facing:** Yes
+- **Employees:** 101-1000
+- **Compliance:** PCI DSS, SOC 2
+- **Authentication:** OAuth2, MFA
+
+**Technology Stack:**
+- **Database:** PostgreSQL 15.3
+- **Operating System:** Ubuntu 22.04
+- **Languages:** Python 3.11.0, JavaScript *
+- **Frameworks:** Django 4.2.7, React 18.2.0
+
+This configuration enables AegisShield to:
+1. Search NVD for vulnerabilities in PostgreSQL 15.3, Ubuntu 22.04, Django 4.2.7
+2. Fetch financial sector threat intelligence from AlienVault OTX
+3. Apply appropriate MITRE ATT&CK matrices for web applications
+4. Consider PCI DSS compliance requirements in mitigations
+5. Assess OAuth2 and MFA-specific threats
+
+## Validation and Next Steps
+
+Before proceeding to Step 3, AegisShield validates (from `step2_technology.py:170-197`):
+
+- Application type is selected
+- Industry sector is selected
+- Data sensitivity is selected
+- Internet-facing status is selected
+- Number of employees is selected
+
+Technology selections are optional but highly recommended for comprehensive threat modeling.
+
+<Note>
+  All selections are saved to session state (`step2_technology.py:372-385`) and used in subsequent steps for threat generation, MITRE mapping, DREAD assessment, and test case generation.
+</Note>
+
+Click **Next** when ready to generate your threat model in Step 3.

@@ -1,0 +1,268 @@
+---
+title: 'NVD Search API'
+description: 'API reference for NVD vulnerability search functions'
+---
+
+## Overview
+
+The NVD Search module provides functions to search the National Vulnerability Database (NVD) for CVEs related to specific technologies and versions. It implements NIST SP 800-53 Rev. 5 controls for vulnerability scanning and assessment.
+
+### NIST SP 800-53 Rev. 5 Controls Implemented
+
+- **SI-7** (Software, Firmware, and Information Integrity): Vulnerability assessment and monitoring
+- **RA-5** (Vulnerability Scanning): Automated vulnerability identification via NVD
+- **SC-7** (Boundary Protection): External API communication security
+- **AU-3** (Content of Audit Records): API interaction logging
+- **SI-4** (Information System Monitoring): Continuous vulnerability monitoring
+
+---
+
+## Classes
+
+### NVDConfig
+
+```python
+@dataclass
+class NVDConfig:
+    max_retries: int = 3
+    initial_delay: float = 1.0
+    default_top_n: int = 10
+```
+
+Configuration settings for NVD API operations.
+
+<ParamField path="max_retries" type="int" default="3">
+  Maximum number of retry attempts for API calls
+</ParamField>
+
+<ParamField path="initial_delay" type="float" default="1.0">
+  Initial delay in seconds between retry attempts
+</ParamField>
+
+<ParamField path="default_top_n" type="int" default="10">
+  Default number of top CVEs to return
+</ParamField>
+
+### NVDAPIError
+
+```python
+class NVDAPIError(Exception):
+    pass
+```
+
+Custom exception for NVD API related errors.
+
+---
+
+## Functions
+
+### search_nvd()
+
+```python
+def search_nvd(
+    api_key: str,
+    cpe_name: str,
+    version: str = "*",
+    tech: str = "",
+    category: str = "",
+    top_n: int = 10,
+    config: NVDConfig | None = None
+) -> str
+```
+
+Search the NVD for CVEs related to a specific technology and version using NVDLib.
+
+<ParamField path="api_key" type="str" required>
+  The API key for accessing the NVD API
+</ParamField>
+
+<ParamField path="cpe_name" type="str" required>
+  The CPE (Common Platform Enumeration) name for the technology
+</ParamField>
+
+<ParamField path="version" type="str" default="*">
+  The version of the technology to search for
+</ParamField>
+
+<ParamField path="tech" type="str" default="">
+  The technology name for display purposes
+</ParamField>
+
+<ParamField path="category" type="str" default="">
+  The category of the technology for display purposes
+</ParamField>
+
+<ParamField path="top_n" type="int" default="10">
+  The number of top CVEs to return, sorted by CVSS score and published date
+</ParamField>
+
+<ParamField path="config" type="NVDConfig | None" default="None">
+  Optional configuration settings for retry behavior
+</ParamField>
+
+<ResponseField name="return" type="str">
+  A formatted string containing CVE information including:
+  - CVE ID
+  - Technology name and category
+  - Version
+  - CVSS score
+  - Published date
+  - Description
+  - Total vulnerabilities found
+</ResponseField>
+
+#### Error Handling
+
+**Raises:**
+- `NVDAPIError`: If there's an error accessing the NVD API or processing the results
+- Handles timeout, HTTP errors (including rate limiting), and unexpected errors
+- Returns error messages as formatted strings rather than raising exceptions
+
+#### Example Usage
+
+```python
+from nvd_search import search_nvd, NVDConfig
+
+# Basic usage
+result = search_nvd(
+    api_key="your_nvd_api_key",
+    cpe_name="cpe:2.3:a:apache:tomcat:",
+    version="9.0.1",
+    tech="Apache Tomcat",
+    category="Web Server"
+)
+print(result)
+
+# Custom configuration with more retries
+config = NVDConfig(max_retries=5, initial_delay=2.0, default_top_n=20)
+result = search_nvd(
+    api_key="your_nvd_api_key",
+    cpe_name="cpe:2.3:a:nginx:nginx:",
+    version="1.18.0",
+    tech="Nginx",
+    category="Web Server",
+    top_n=20,
+    config=config
+)
+```
+
+---
+
+### fetch_cpe_name()
+
+```python
+def fetch_cpe_name(
+    api_key: str,
+    cpe_prefix: str,
+    version: str = "*"
+) -> str
+```
+
+Fetch the CPE name for a given technology and version from the NVD API using NVDLib.
+
+<ParamField path="api_key" type="str" required>
+  The API key for accessing the NVD API
+</ParamField>
+
+<ParamField path="cpe_prefix" type="str" required>
+  The CPE prefix for the technology (e.g., "cpe:2.3:a:apache:tomcat:")
+</ParamField>
+
+<ParamField path="version" type="str" default="*">
+  The version of the technology (defaults to wildcard)
+</ParamField>
+
+<ResponseField name="return" type="str">
+  The CPE name string. If the CPE is deprecated, returns the replacement CPE name.
+</ResponseField>
+
+#### Error Handling
+
+**Raises:**
+- `NVDAPIError`: If no CPE is found, API timeout occurs, rate limit is exceeded, or other HTTP/unexpected errors
+
+#### Example Usage
+
+```python
+from nvd_search import fetch_cpe_name
+
+cpe_name = fetch_cpe_name(
+    api_key="your_nvd_api_key",
+    cpe_prefix="cpe:2.3:a:apache:tomcat:",
+    version="9.0.1"
+)
+print(f"Found CPE: {cpe_name}")
+```
+
+---
+
+### retry_with_backoff()
+
+```python
+def retry_with_backoff(
+    func,
+    config: NVDConfig | None = None
+)
+```
+
+Retry a function with exponential backoff for resilient API communication.
+
+<ParamField path="func" type="callable" required>
+  The function to retry (should be a callable with no arguments)
+</ParamField>
+
+<ParamField path="config" type="NVDConfig | None" default="None">
+  Optional configuration settings. If None, uses default NVDConfig values.
+</ParamField>
+
+<ResponseField name="return" type="any">
+  The result of the function call if successful
+</ResponseField>
+
+#### Error Handling
+
+**Raises:**
+- `NVDAPIError`: If all retry attempts fail
+- Logs warnings for each retry attempt
+- Implements exponential backoff (delay doubles after each attempt)
+
+#### Example Usage
+
+```python
+from nvd_search import retry_with_backoff, NVDConfig
+
+def api_call():
+    # Your API call logic here
+    return fetch_data_from_nvd()
+
+config = NVDConfig(max_retries=5, initial_delay=2.0)
+result = retry_with_backoff(api_call, config)
+```
+
+---
+
+## Implementation Notes
+
+### Logging
+
+All functions implement comprehensive logging:
+- API key masking for security (only first 8 characters shown)
+- Debug logs for CPE match strings and found CPE names
+- Info logs for search queries and result counts
+- Warning logs for processing errors
+- Error logs for API failures
+
+### Security
+
+- API keys are masked in all log output
+- Never logs sensitive credentials
+- Implements rate limit handling
+- Uses secure retry logic with exponential backoff
+
+### Result Sorting
+
+CVE results are sorted by:
+1. CVSS score (descending)
+2. Published date (descending)
+
+This ensures the most critical and recent vulnerabilities appear first.

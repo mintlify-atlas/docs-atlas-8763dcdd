@@ -1,0 +1,744 @@
+---
+title: 'NIST SP 800-53 Rev. 5 Controls'
+description: 'Comprehensive implementation of NIST SP 800-53 Rev. 5 security controls in AegisShield'
+icon: 'shield-check'
+---
+
+## Overview
+
+AegisShield implements **15 NIST SP 800-53 Rev. 5 security controls** across 6 control families, demonstrating compliance with federal cybersecurity standards and best practices for secure system development.
+
+<Info>
+  **Implementation Coverage**: 100% of identified applicable controls
+  
+  **Control Families**: 6 families implemented
+  
+  **Enhancement Controls**: IA-5(1), SC-12(2)
+</Info>
+
+## Control Families
+
+AegisShield's security controls span across multiple families:
+
+<CardGroup cols={2}>
+  <Card title="Access Control (AC)" icon="lock" iconType="solid">
+    1 control implemented
+    
+    API key validation and access enforcement
+  </Card>
+  
+  <Card title="Identification & Authentication (IA)" icon="fingerprint" iconType="solid">
+    2 controls implemented
+    
+    Secure authenticator management
+  </Card>
+  
+  <Card title="System & Communications Protection (SC)" icon="shield" iconType="solid">
+    2 controls implemented
+    
+    Boundary protection and cryptographic key management
+  </Card>
+  
+  <Card title="System & Information Integrity (SI)" icon="computer" iconType="solid">
+    3 controls implemented
+    
+    Monitoring, error handling, and vulnerability assessment
+  </Card>
+  
+  <Card title="Audit & Accountability (AU)" icon="clipboard-list" iconType="solid">
+    4 controls implemented
+    
+    Comprehensive logging and audit capabilities
+  </Card>
+  
+  <Card title="Risk Assessment (RA)" icon="triangle-exclamation" iconType="solid">
+    2 controls implemented
+    
+    Vulnerability scanning and threat intelligence
+  </Card>
+</CardGroup>
+
+## Control Implementations
+
+### Access Control (AC)
+
+<Accordion title="AC-3: Access Enforcement">
+  <ParamField body="control_family" type="string" default="Access Control">
+    Access Control family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="api_key_handler.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Validates API keys before granting access to external services (OpenAI, NVD, AlienVault OTX)
+  
+  **Implementation Details**
+  
+  - API key validation and access control enforcement
+  - Password-type input validation
+  - Session state management
+  - Error messages for missing credentials
+  
+  **Code Evidence**
+  
+  ```python
+  # api_key_handler.py:73
+  # NIST AC-3: Access enforcement through credential validation
+  
+  # api_key_handler.py:82
+  # NIST AC-3: Enforce access control through authenticator validation
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+### Identification and Authentication (IA)
+
+<Accordion title="IA-2: Identification and Authentication (Organizational Users)">
+  <ParamField body="control_family" type="string" default="Identification and Authentication">
+    IA family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="api_key_handler.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Manages authentication credentials for external threat intelligence and AI services
+  
+  **Implementation Details**
+  
+  - Authentication to external services via API keys
+  - Support for OpenAI, NVD, and AlienVault OTX
+  - API key management system
+  - Secure credential storage
+  - Service authentication
+  
+  **Code Evidence**
+  
+  ```python
+  # api_key_handler.py:8
+  # IA-2 (Identification and Authentication): 
+  # Authentication to external services
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+<Accordion title="IA-5: Authenticator Management">
+  <ParamField body="control_family" type="string" default="Identification and Authentication">
+    IA family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented with IA-5(1) enhancement
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="api_key_handler.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Secure API key management and storage using Streamlit secrets, password-type input fields, and session-based credential management
+  
+  **Implementation Details**
+  
+  - **IA-5(1)**: Password-Based Authentication
+  - Streamlit secrets integration
+  - Password-type input masking
+  - Session credential management
+  - Secure storage and retrieval of authenticators
+  - Masked input for sensitive authenticator data
+  
+  **Code Evidence**
+  
+  ```python
+  # api_key_handler.py:4, 15, 20, 72, 78
+  # IA-5 (Authenticator Management): API key management and secure storage
+  # IA-5(1): Authenticator Management | Password-Based Authentication
+  # NIST IA-5(1): Secure storage and retrieval of authenticators
+  # NIST IA-5(1): Masked input for sensitive authenticator data
+  # NIST IA-5(1): Obscure display of authenticators
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+### System and Communications Protection (SC)
+
+<Accordion title="SC-7: Boundary Protection">
+  <ParamField body="control_family" type="string" default="System and Communications Protection">
+    SC family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="nvd_search.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Resilient communication with external threat intelligence sources, retry mechanisms for network failures, secure API endpoints
+  
+  **Implementation Details**
+  
+  - Secure external API communications
+  - Retry mechanisms and failure handling
+  - HTTP error handling
+  - Timeout management
+  - Exponential backoff retry logic
+  - Resilient external API communication
+  - Secure NVD and OTX API communication
+  
+  **Code Evidence**
+  
+  ```python
+  # nvd_search.py:13, 37, 128
+  # SC-7 (Boundary Protection): External API communication security
+  # SC-7: Boundary Protection - Resilient external API communication
+  # SC-7: Boundary Protection - Secure NVD API communication
+  
+  # alientvault_search.py:14, 69
+  # SC-7 (Boundary Protection): Secure external threat intelligence API communication
+  # SC-7: Boundary Protection - Secure API communication with threat intelligence provider
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+<Accordion title="SC-12: Cryptographic Key Establishment and Management">
+  <ParamField body="control_family" type="string" default="System and Communications Protection">
+    SC family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented with SC-12(2) enhancement
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="api_key_handler.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Management of cryptographic keys for external service authentication
+  
+  **Implementation Details**
+  
+  - **SC-12(2)**: Symmetric Keys implementation
+  - API key lifecycle management
+  - API key storage and retrieval
+  - Session management systems
+  
+  **Code Evidence**
+  
+  ```python
+  # api_key_handler.py:5, 16
+  # SC-12 (Cryptographic Key Establishment and Management): Key lifecycle management
+  # SC-12(2): Cryptographic Key Establishment | Symmetric Keys
+  ```
+  
+  **Assessment Methods**: Examine, Interview
+</Accordion>
+
+### System and Information Integrity (SI)
+
+<Accordion title="SI-4: Information System Monitoring">
+  <ParamField body="control_family" type="string" default="System and Information Integrity">
+    SI family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="nvd_search.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Continuous vulnerability monitoring via NVD, external threat intelligence monitoring via AlienVault OTX, connection failure monitoring and logging
+  
+  **Implementation Details**
+  
+  - Continuous monitoring and threat intelligence collection
+  - NVD vulnerability monitoring
+  - OTX threat intelligence collection
+  - Connection monitoring logs
+  
+  **Code Evidence**
+  
+  ```python
+  # nvd_search.py:15, 38
+  # SI-4 (Information System Monitoring): Continuous vulnerability monitoring
+  # SI-4: Information System Monitoring - Connection failure monitoring
+  
+  # alientvault_search.py:11, 66
+  # SI-4 (Information System Monitoring): Continuous threat intelligence monitoring
+  # SI-4: Information System Monitoring - External threat intelligence collection
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+<Accordion title="SI-7: Software, Firmware, and Information Integrity">
+  <ParamField body="control_family" type="string" default="System and Information Integrity">
+    SI family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="nvd_search.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Automated vulnerability identification for software components, technology version vulnerability analysis, CVE-based integrity assessment
+  
+  **Implementation Details**
+  
+  - Vulnerability assessment and software integrity monitoring
+  - CVE database integration
+  - Software version tracking
+  - Vulnerability assessment reports
+  - Technology version vulnerability analysis
+  
+  **Code Evidence**
+  
+  ```python
+  # nvd_search.py:11, 126
+  # SI-7 (Software, Firmware, and Information Integrity): 
+  # Vulnerability assessment and monitoring
+  # SI-7: Software Integrity - Technology version vulnerability analysis
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+<Accordion title="SI-11: Error Handling">
+  <ParamField body="control_family" type="string" default="System and Information Integrity">
+    SI family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="error_handler.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Centralized exception management, user-friendly error messages without sensitive data exposure, comprehensive error capture and logging
+  
+  **Implementation Details**
+  
+  - Complete error handling framework
+  - Centralized error handling system
+  - Sanitized user messages
+  - Comprehensive error logging
+  - User-friendly error messages without sensitive details
+  
+  **Code Evidence**
+  
+  ```python
+  # error_handler.py:14, 53, 82, 88, 97
+  # SI-11 (Error Handling): Systematic error handling and user notification
+  # SI-11: Error Handling - Comprehensive error capture and logging
+  # SI-11: Error Handling - User-friendly error messages without sensitive details
+  # NIST SI-11: Display sanitized error message to user (no sensitive data exposure)
+  # SI-11: Error Handling - Centralized exception management
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+### Audit and Accountability (AU)
+
+<Accordion title="AU-3: Content of Audit Records">
+  <ParamField body="control_family" type="string" default="Audit and Accountability">
+    AU family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="error_handler.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Complete error context and metadata capture, API interaction logging, vulnerability scan result logging, threat intelligence query logging
+  
+  **Implementation Details**
+  
+  - Comprehensive logging with structured content
+  - Structured log formats
+  - Comprehensive metadata capture
+  - Contextual error information
+  - Complete error context and metadata
+  
+  **Code Evidence**
+  
+  ```python
+  # error_handler.py:10, 32, 50, 61, 98
+  # AU-3 (Content of Audit Records): Comprehensive logging with timestamps and context
+  # AU-3: Content of Audit Records - Structured logging format
+  # AU-3: Content of Audit Records - Complete error context and metadata
+  # NIST AU-3: Content of Audit Records - Structured log entry with context
+  # AU-3: Content of Audit Records - Complete exception context capture
+  
+  # nvd_search.py:14, 39, 127
+  # AU-3 (Content of Audit Records): API interaction logging
+  
+  # alientvault_search.py:15, 70
+  # AU-3 (Content of Audit Records): Threat intelligence query logging
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+<Accordion title="AU-4: Audit Storage Capacity">
+  <ParamField body="control_family" type="string" default="Audit and Accountability">
+    AU family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="error_handler.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Automated log directory creation and file management
+  
+  **Implementation Details**
+  
+  - Log file management and storage
+  - Automatic directory creation
+  - Log directory structure
+  - File handler configuration
+  - Storage management
+  
+  **Code Evidence**
+  
+  ```python
+  # error_handler.py:11, 33
+  # AU-4 (Audit Storage Capacity): Log file management and storage
+  # AU-4: Audit Storage Capacity - Log directory creation and management
+  ```
+  
+  **Assessment Methods**: Examine, Interview
+</Accordion>
+
+<Accordion title="AU-6: Audit Review, Analysis, and Reporting">
+  <ParamField body="control_family" type="string" default="Audit and Accountability">
+    AU family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="error_handler.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Structured log format for analysis, user notification as part of error handling, console output for immediate audit review
+  
+  **Implementation Details**
+  
+  - Error analysis and reporting capabilities
+  - Console output for immediate review
+  - Structured error formats
+  - User notification system
+  
+  **Code Evidence**
+  
+  ```python
+  # error_handler.py:12, 52, 66, 83, 99
+  # AU-6 (Audit Review, Analysis, and Reporting): Error analysis and reporting
+  # AU-6: Audit Review - Structured format for analysis
+  # NIST AU-6: Write to console for immediate audit review
+  # AU-6: Audit Review - User notification as part of error handling process
+  # AU-6: Audit Review - Error logging for analysis
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+<Accordion title="AU-8: Time Stamps">
+  <ParamField body="control_family" type="string" default="Audit and Accountability">
+    AU family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="error_handler.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Consistent timestamp format for all audit records with precise timestamp generation
+  
+  **Implementation Details**
+  
+  - Precise timestamp generation for all logged events
+  - Consistent timestamp formats
+  - Datetime integration
+  - Audit record timestamping
+  
+  **Code Evidence**
+  
+  ```python
+  # error_handler.py:13, 34, 51, 59
+  # AU-8 (Time Stamps): Timestamp generation for all logged events
+  # AU-8: Time Stamps - Timestamp format configuration
+  # AU-8: Time Stamps - Precise timestamp for each error event
+  # NIST AU-8: Time Stamps - Generate precise timestamp for audit record
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+### Risk Assessment (RA)
+
+<Accordion title="RA-3: Risk Assessment">
+  <ParamField body="control_family" type="string" default="Risk Assessment">
+    RA family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="alientvault_search.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Industry-specific threat intelligence collection to support risk assessment activities
+  
+  **Implementation Details**
+  
+  - Threat intelligence integration for risk analysis
+  - Industry-specific threat intelligence queries
+  - Risk-relevant data collection
+  - Threat assessment integration
+  
+  **Code Evidence**
+  
+  ```python
+  # alientvault_search.py:12, 67
+  # RA-3 (Risk Assessment): Threat intelligence integration for risk analysis
+  # RA-3: Risk Assessment - Industry-specific threat intelligence for risk analysis
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+<Accordion title="RA-5: Vulnerability Scanning">
+  <ParamField body="control_family" type="string" default="Risk Assessment">
+    RA family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="nvd_search.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Automated CVE discovery via NVD API, technology-specific vulnerability scanning, CVSS score-based vulnerability prioritization
+  
+  **Implementation Details**
+  
+  - Automated vulnerability identification and assessment
+  - NVD API integration
+  - CVE database queries
+  - CVSS scoring
+  - Vulnerability prioritization
+  
+  **Code Evidence**
+  
+  ```python
+  # nvd_search.py:12, 125
+  # RA-5 (Vulnerability Scanning): Automated vulnerability identification via NVD
+  # RA-5: Vulnerability Scanning - Automated CVE discovery and assessment
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+### Program Management (PM)
+
+<Accordion title="PM-16: Threat Awareness Program">
+  <ParamField body="control_family" type="string" default="Program Management">
+    PM family
+  </ParamField>
+  
+  <ParamField body="implementation_status" type="string" default="implemented">
+    Fully implemented
+  </ParamField>
+  
+  <ParamField body="primary_file" type="string" default="alientvault_search.py">
+    Primary implementation location
+  </ParamField>
+  
+  **Description**
+  
+  Structured threat intelligence collection to support organizational threat awareness
+  
+  **Implementation Details**
+  
+  - External threat intelligence consumption
+  - Threat intelligence feeds
+  - Structured data consumption
+  - Organizational awareness capabilities
+  
+  **Code Evidence**
+  
+  ```python
+  # alientvault_search.py:13, 68
+  # PM-16 (Threat Awareness Program): External threat intelligence consumption
+  # PM-16: Threat Awareness Program - Structured threat intelligence consumption
+  ```
+  
+  **Assessment Methods**: Examine, Interview, Test
+</Accordion>
+
+## Control Implementation Matrix
+
+| Control Family | Control | Status | Primary Module |
+|----------------|---------|--------|----------------|
+| AC | AC-3 | ✅ Implemented | api_key_handler.py |
+| IA | IA-2 | ✅ Implemented | api_key_handler.py |
+| IA | IA-5 | ✅ Implemented | api_key_handler.py |
+| SC | SC-7 | ✅ Implemented | nvd_search.py, alientvault_search.py |
+| SC | SC-12 | ✅ Implemented | api_key_handler.py |
+| SI | SI-4 | ✅ Implemented | nvd_search.py, alientvault_search.py |
+| SI | SI-7 | ✅ Implemented | nvd_search.py |
+| SI | SI-11 | ✅ Implemented | error_handler.py |
+| AU | AU-3 | ✅ Implemented | error_handler.py, nvd_search.py, alientvault_search.py |
+| AU | AU-4 | ✅ Implemented | error_handler.py |
+| AU | AU-6 | ✅ Implemented | error_handler.py |
+| AU | AU-8 | ✅ Implemented | error_handler.py |
+| RA | RA-3 | ✅ Implemented | alientvault_search.py |
+| RA | RA-5 | ✅ Implemented | nvd_search.py |
+| PM | PM-16 | ✅ Implemented | alientvault_search.py |
+
+## Machine-Readable Mappings
+
+AegisShield includes a comprehensive JSON mapping file for automated compliance integration:
+
+```json
+{
+  "metadata": {
+    "application": "AegisShield Threat Modeler",
+    "framework": "NIST SP 800-53 Rev. 5",
+    "total_controls": 15,
+    "control_families": 6
+  },
+  "assessment_summary": {
+    "total_controls_implemented": 15,
+    "implementation_coverage": "100%",
+    "compliance_frameworks_supported": ["FedRAMP", "FISMA"]
+  }
+}
+```
+
+<Tip>
+  The complete machine-readable control mapping is available in `nist-sp-800-53-controls-mapping.json` for integration with GRC tools.
+</Tip>
+
+## Compliance Benefits
+
+This implementation provides several compliance benefits:
+
+<AccordionGroup>
+  <Accordion title="Federal Risk and Authorization Management Program (FedRAMP)">
+    Many of these controls are required for FedRAMP compliance. AegisShield implements core security controls needed for federal cloud service authorization.
+  </Accordion>
+  
+  <Accordion title="Federal Information Security Management Act (FISMA)">
+    Supports FISMA requirements for federal information systems with comprehensive audit trails and security control documentation.
+  </Accordion>
+  
+  <Accordion title="NIST Cybersecurity Framework">
+    Aligns with NIST Cybersecurity Framework categories: Identify, Protect, Detect, Respond, and Recover.
+  </Accordion>
+  
+  <Accordion title="Industry Standards">
+    Demonstrates security best practices for cybersecurity applications across healthcare, finance, and technology sectors.
+  </Accordion>
+</AccordionGroup>
+
+## Additional Controls Consideration
+
+While AegisShield implements core security controls, organizations may want to consider additional controls based on their specific security requirements:
+
+- **AC-2**: Account Management (if multi-user capabilities are added)
+- **AC-6**: Least Privilege (for role-based access)
+- **CM-2**: Baseline Configuration (for infrastructure management)
+- **CP-9**: Information System Backup (for data protection)
+- **IR-4**: Incident Handling (for security incident response)
+
+## Documentation and Evidence
+
+<Card title="Audit Trail" icon="file-lines">
+  All control implementations are documented directly in the source code with specific NIST SP 800-53 Rev. 5 control references, providing clear traceability for compliance audits and assessments.
+</Card>
+
+## Maintenance and Updates
+
+This mapping should be reviewed and updated whenever:
+
+<Steps>
+  <Step title="NIST Updates">
+    New NIST SP 800-53 revisions are published
+  </Step>
+  <Step title="Functionality Changes">
+    Application functionality is modified
+  </Step>
+  <Step title="Security Requirements">
+    Security requirements change
+  </Step>
+  <Step title="Framework Updates">
+    Compliance frameworks are updated
+  </Step>
+</Steps>

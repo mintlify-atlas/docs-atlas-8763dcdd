@@ -1,0 +1,356 @@
+---
+title: "DREAD Risk Assessment"
+description: "Quantitative risk assessment using the DREAD methodology for threat prioritization"
+---
+
+# DREAD Risk Assessment
+
+AegisShield implements the DREAD (Damage, Reproducibility, Exploitability, Affected Users, Discoverability) methodology to provide quantitative risk scores for identified threats, enabling data-driven prioritization.
+
+## Overview
+
+The DREAD assessment module (`dread.py`) assigns numeric scores (1-10) across five dimensions, calculating an overall risk score for each threat.
+
+<CardGroup cols={2}>
+  <Card title="5 Dimensions" icon="gauge-high">
+    Damage, Reproducibility, Exploitability, Affected Users, Discoverability
+  </Card>
+  <Card title="1-10 Scale" icon="chart-line">
+    Low (1-3), Medium (4-6), High (7-10) scoring
+  </Card>
+  <Card title="AI-Powered" icon="brain">
+    GPT-4o evaluates threats with security expertise
+  </Card>
+  <Card title="Prioritization" icon="sort">
+    Sort by risk score for action planning
+  </Card>
+</CardGroup>
+
+## DREAD Dimensions
+
+<AccordionGroup>
+  <Accordion title="Damage Potential (D)" icon="bomb">
+    **What it measures:** The extent of harm if the threat is exploited.
+    
+    **Scoring:**
+    - **1-3 (Low):** Minor inconvenience, limited data exposure
+    - **4-6 (Medium):** Significant data loss, service disruption
+    - **7-10 (High):** Complete system compromise, critical data breach
+    
+    **Example:** SQL injection allowing full database access = 9
+  </Accordion>
+  
+  <Accordion title="Reproducibility (R)" icon="repeat">
+    **What it measures:** How easily the attack can be reproduced.
+    
+    **Scoring:**
+    - **1-3 (Low):** Requires rare conditions, complex setup
+    - **4-6 (Medium):** Reproducible with moderate effort
+    - **7-10 (High):** Easily reproducible, automated tools available
+    
+    **Example:** Public exploit code available = 10
+  </Accordion>
+  
+  <Accordion title="Exploitability (E)" icon="unlock">
+    **What it measures:** The skill level required to exploit the threat.
+    
+    **Scoring:**
+    - **1-3 (Low):** Requires advanced skills, custom tools
+    - **4-6 (Medium):** Intermediate skills, some tools needed
+    - **7-10 (High):** Novice can exploit, tools readily available
+    
+    **Example:** Metasploit module exists = 9
+  </Accordion>
+  
+  <Accordion title="Affected Users (A)" icon="users">
+    **What it measures:** The percentage or number of users impacted.
+    
+    **Scoring:**
+    - **1-3 (Low):** Single user or small group (less than 5%)
+    - **4-6 (Medium):** Significant subset (5-50%)
+    - **7-10 (High):** Majority or all users (greater than 50%)
+    
+    **Example:** All users' credentials exposed = 10
+  </Accordion>
+  
+  <Accordion title="Discoverability (D)" icon="magnifying-glass">
+    **What it measures:** How easily the vulnerability can be found.
+    
+    **Scoring:**
+    - **1-3 (Low):** Requires source code audit, deep analysis
+    - **4-6 (Medium):** Found with security tools, testing
+    - **7-10 (High):** Obvious, publicly disclosed, scanner detects
+    
+    **Example:** CVE with public exploit = 10
+  </Accordion>
+</AccordionGroup>
+
+## Core Functions
+
+### get_dread_assessment()
+
+Generates DREAD risk scores for all threats.
+
+<ParamField path="api_key" type="str" required>
+  OpenAI API key
+</ParamField>
+
+<ParamField path="model_name" type="str" default="gpt-4o">
+  OpenAI model to use
+</ParamField>
+
+<ParamField path="prompt" type="str" required>
+  Formatted DREAD assessment prompt
+</ParamField>
+
+**Returns:** `dict[str, Any]` - JSON object with risk assessments
+
+```python dread.py:128-179
+from dread import get_dread_assessment, create_dread_assessment_prompt
+
+# Create prompt
+prompt = create_dread_assessment_prompt(
+    threats=threat_markdown,
+    mitre_mapping=mitre_markdown,
+    nvd_vulnerabilities=nvd_data
+)
+
+# Get assessment
+assessment = get_dread_assessment(
+    api_key=openai_key,
+    model_name="gpt-4o",
+    prompt=prompt
+)
+
+# Access risk scores
+for threat in assessment["Risk Assessment"]:
+    risk_score = (
+        threat["Damage Potential"] +
+        threat["Reproducibility"] +
+        threat["Exploitability"] +
+        threat["Affected Users"] +
+        threat["Discoverability"]
+    ) / 5
+    print(f"{threat['Scenario']}: {risk_score:.2f}")
+```
+
+### create_dread_assessment_prompt()
+
+Creates a comprehensive prompt for DREAD scoring.
+
+<ParamField path="threats" type="str" required>
+  Markdown-formatted threat model
+</ParamField>
+
+<ParamField path="mitre_mapping" type="str" required>
+  MITRE ATT&CK technique mappings
+</ParamField>
+
+<ParamField path="nvd_vulnerabilities" type="str" required>
+  NVD CVE data
+</ParamField>
+
+```python Prompt creation from dread.py:64-126
+prompt = create_dread_assessment_prompt(
+    threats="""| Threat Type | Scenario | ... |
+    |-------------|----------|-----|
+    | Spoofing | Attacker could... | ... |""",
+    mitre_mapping="T1566: Phishing...",
+    nvd_vulnerabilities="CVE-2024-1234..."
+)
+```
+
+### dread_json_to_markdown()
+
+Converts DREAD assessment to Markdown table.
+
+<ParamField path="dread_assessment" type="dict[str, Any]" required>
+  DREAD assessment JSON
+</ParamField>
+
+**Returns:** `str` - Markdown table with risk scores
+
+```python dread.py:17-62
+from dread import dread_json_to_markdown
+
+markdown = dread_json_to_markdown(assessment)
+print(markdown)
+```
+
+**Output:**
+
+| Threat Type | Scenario | Damage | Reprod. | Exploit. | Users | Discov. | Risk Score |
+|-------------|----------|--------|---------|----------|-------|---------|------------|
+| Spoofing | Attacker could... | 8 | 7 | 6 | 9 | 8 | 7.60 |
+
+## Risk Score Calculation
+
+The overall risk score is the **arithmetic mean** of the five dimensions:
+
+```python Risk calculation from dread.py:45-51
+risk_score = (
+    damage_potential +
+    reproducibility +
+    exploitability +
+    affected_users +
+    discoverability
+) / 5
+```
+
+<Note>
+Risk scores range from 1.0 (lowest) to 10.0 (highest). Scores ≥ 7.0 typically require immediate attention.
+</Note>
+
+## Prioritization Strategy
+
+<Steps>
+  <Step title="Sort by Risk Score">
+    Order threats from highest to lowest risk score.
+    
+    ```python
+    sorted_threats = sorted(
+        assessment["Risk Assessment"],
+        key=lambda t: (
+            t["Damage Potential"] +
+            t["Reproducibility"] +
+            t["Exploitability"] +
+            t["Affected Users"] +
+            t["Discoverability"]
+        ) / 5,
+        reverse=True
+    )
+    ```
+  </Step>
+  
+  <Step title="Categorize by Severity">
+    - **Critical (9.0-10.0):** Immediate action required
+    - **High (7.0-8.9):** Address within 1 week
+    - **Medium (4.0-6.9):** Address within 1 month
+    - **Low (1.0-3.9):** Address as resources permit
+  </Step>
+  
+  <Step title="Apply Business Context">
+    Consider:
+    - Regulatory requirements (HIPAA, GDPR, etc.)
+    - Business criticality of affected systems
+    - Cost of mitigation vs. potential impact
+    - Existing compensating controls
+  </Step>
+</Steps>
+
+## Example Assessment
+
+```json DREAD assessment structure
+{
+  "Risk Assessment": [
+    {
+      "Threat Type": "Spoofing",
+      "Scenario": "An attacker could create a fake OAuth2 provider and trick users into logging in through it.",
+      "Damage Potential": 8,
+      "Reproducibility": 6,
+      "Exploitability": 5,
+      "Affected Users": 9,
+      "Discoverability": 7
+    },
+    {
+      "Threat Type": "Information Disclosure",
+      "Scenario": "Sensitive data could be exposed through verbose error messages.",
+      "Damage Potential": 6,
+      "Reproducibility": 8,
+      "Exploitability": 9,
+      "Affected Users": 5,
+      "Discoverability": 7
+    }
+  ]
+}
+```
+
+**Calculated Risk Scores:**
+- OAuth Spoofing: (8+6+5+9+7)/5 = **7.0** (High)
+- Error Message Disclosure: (6+8+9+5+7)/5 = **7.0** (High)
+
+## Integration with Threat Intelligence
+
+DREAD assessment incorporates:
+
+<CardGroup cols={3}>
+  <Card title="Threat Model" icon="shield-halved">
+    STRIDE threats with scenarios and impacts
+  </Card>
+  <Card title="MITRE ATT&CK" icon="crosshairs">
+    Real-world attack patterns and techniques
+  </Card>
+  <Card title="NVD CVEs" icon="bug">
+    Known vulnerabilities with CVSS scores
+  </Card>
+</CardGroup>
+
+This multi-source context enables more accurate risk scoring than traditional methods.
+
+## Complete Workflow
+
+```python End-to-end risk assessment
+from threat_model import get_threat_model, json_to_markdown
+from mitre_attack import process_mitre_attack_data
+from dread import create_dread_assessment_prompt, get_dread_assessment, dread_json_to_markdown
+
+# 1. Generate threat model
+threats = get_threat_model(api_key, "gpt-4o", threat_prompt)
+threat_markdown = json_to_markdown(threats["threat_model"], [])
+
+# 2. Map to MITRE
+mitre_mapped = process_mitre_attack_data(stix_data, threats["threat_model"], app_details, api_key)
+mitre_markdown = format_mitre_markdown(mitre_mapped)  # Helper function
+
+# 3. Get NVD data
+nvd_data = search_nvd(...)  # From nvd_search module
+
+# 4. Perform DREAD assessment
+dread_prompt = create_dread_assessment_prompt(
+    threats=threat_markdown,
+    mitre_mapping=mitre_markdown,
+    nvd_vulnerabilities=nvd_data
+)
+
+assessment = get_dread_assessment(api_key, "gpt-4o", dread_prompt)
+
+# 5. Display results
+print(dread_json_to_markdown(assessment))
+
+# 6. Export high-risk threats
+high_risk = [
+    t for t in assessment["Risk Assessment"]
+    if (t["Damage Potential"] + t["Reproducibility"] + 
+        t["Exploitability"] + t["Affected Users"] + 
+        t["Discoverability"]) / 5 >= 7.0
+]
+```
+
+## Best Practices
+
+<Accordion title="Consistent Scoring" icon="scale-balanced">
+  Apply the same scoring criteria across all threats. Document your interpretation of the 1-10 scale for your organization.
+</Accordion>
+
+<Accordion title="Regular Re-assessment" icon="rotate">
+  Re-evaluate risk scores when:
+  - New vulnerabilities are disclosed
+  - Threat landscape changes
+  - Mitigations are implemented
+  - System architecture evolves
+</Accordion>
+
+<Accordion title="Stakeholder Review" icon="users">
+  Have security team, developers, and business stakeholders review high-risk threats together to ensure scoring reflects organizational priorities.
+</Accordion>
+
+<Accordion title="Track Trends" icon="chart-line">
+  Monitor how risk scores change over time. Decreasing scores indicate effective security improvements.
+</Accordion>
+
+## Related Features
+
+- [Threat Modeling](/features/threat-modeling) - Generate STRIDE threats
+- [MITRE ATT&CK](/features/mitre-attack) - Map to attack techniques
+- [Mitigations](/api/mitigations) - Generate mitigation strategies
+- [Test Cases](/features/test-cases) - Create security tests

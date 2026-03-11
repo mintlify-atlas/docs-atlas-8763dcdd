@@ -1,0 +1,443 @@
+---
+title: "DREAD Assessment API"
+description: "Generate DREAD risk assessments for threat prioritization"
+---
+
+## Overview
+
+The DREAD Assessment API provides functions to generate quantitative risk assessments using the DREAD methodology (Damage Potential, Reproducibility, Exploitability, Affected Users, Discoverability).
+
+## Configuration Constants
+
+```python
+DEFAULT_MODEL_NAME = "gpt-4o"
+```
+
+## Functions
+
+### get_dread_assessment()
+
+Generate a comprehensive DREAD risk assessment using OpenAI's API based on identified threats and vulnerability data.
+
+```python
+def get_dread_assessment(
+    api_key: str, 
+    model_name: str | None = None, 
+    prompt: str | None = None
+) -> dict[str, Any]
+```
+
+<ParamField path="api_key" type="str" required>
+  OpenAI API key for authentication
+</ParamField>
+
+<ParamField path="model_name" type="str | None" default="gpt-4o">
+  Name of the OpenAI model to use. Defaults to `DEFAULT_MODEL_NAME` ("gpt-4o") if not specified
+</ParamField>
+
+<ParamField path="prompt" type="str | None" required>
+  Formatted prompt containing threat data, MITRE ATT&CK mapping, and NVD vulnerabilities. Created using `create_dread_assessment_prompt()`
+</ParamField>
+
+<ResponseField name="dread_assessment" type="dict[str, Any]">
+  DREAD assessment in JSON format with structure:
+  - `Risk Assessment`: Array of threat assessments, each containing:
+    - `Threat Type`: String (e.g., "Spoofing", "Tampering")
+    - `Scenario`: String describing the threat
+    - `Damage Potential`: Integer 1-10
+    - `Reproducibility`: Integer 1-10
+    - `Exploitability`: Integer 1-10
+    - `Affected Users`: Integer 1-10
+    - `Discoverability`: Integer 1-10
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from dread import get_dread_assessment, create_dread_assessment_prompt
+
+# Define threat data
+threats = """
+1. Spoofing: Attacker creates fake OAuth2 provider to steal credentials
+2. Tampering: SQL injection in login form allows data manipulation
+3. Information Disclosure: Sensitive data exposed through API without authentication
+4. Denial of Service: Resource exhaustion through API abuse
+"""
+
+mitre_mapping = """
+T1078 (Valid Accounts): OAuth credential theft
+T1190 (Exploit Public-Facing Application): SQL injection exploitation
+T1530 (Data from Cloud Storage): Unauthorized API access to stored data
+T1498 (Network Denial of Service): API flooding attacks
+"""
+
+nvd_vulnerabilities = """
+CVE-2024-1234: SQL Injection in authentication module (CVSS: 9.8)
+CVE-2024-5678: Missing authentication in API endpoints (CVSS: 7.5)
+"""
+
+# Create prompt
+prompt = create_dread_assessment_prompt(
+    threats=threats,
+    mitre_mapping=mitre_mapping,
+    nvd_vulnerabilities=nvd_vulnerabilities
+)
+
+# Generate DREAD assessment
+assessment = get_dread_assessment(
+    api_key="your-api-key",
+    model_name="gpt-4o",
+    prompt=prompt
+)
+
+print(assessment)
+```
+
+**Response Format:**
+
+```json
+{
+  "Risk Assessment": [
+    {
+      "Threat Type": "Spoofing",
+      "Scenario": "Attacker creates fake OAuth2 provider to steal credentials",
+      "Damage Potential": 9,
+      "Reproducibility": 7,
+      "Exploitability": 6,
+      "Affected Users": 10,
+      "Discoverability": 8
+    },
+    {
+      "Threat Type": "Tampering",
+      "Scenario": "SQL injection in login form allows data manipulation",
+      "Damage Potential": 10,
+      "Reproducibility": 9,
+      "Exploitability": 8,
+      "Affected Users": 9,
+      "Discoverability": 7
+    },
+    {
+      "Threat Type": "Information Disclosure",
+      "Scenario": "Sensitive data exposed through API without authentication",
+      "Damage Potential": 8,
+      "Reproducibility": 10,
+      "Exploitability": 9,
+      "Affected Users": 8,
+      "Discoverability": 9
+    },
+    {
+      "Threat Type": "Denial of Service",
+      "Scenario": "Resource exhaustion through API abuse",
+      "Damage Potential": 7,
+      "Reproducibility": 8,
+      "Exploitability": 7,
+      "Affected Users": 10,
+      "Discoverability": 6
+    }
+  ]
+}
+```
+
+**DREAD Scoring Scale:**
+
+- **1-3**: Low risk
+- **4-6**: Medium risk
+- **7-10**: High risk
+
+**Risk Score Calculation:**
+
+Risk Score = (Damage Potential + Reproducibility + Exploitability + Affected Users + Discoverability) / 5
+
+**Exceptions:**
+
+- `ValueError`: Raised if API key or prompt is empty
+- `json.JSONDecodeError`: Raised if response cannot be parsed as JSON
+- All exceptions handled by `error_handler.handle_exception()`
+
+---
+
+### create_dread_assessment_prompt()
+
+Create a detailed prompt for generating a DREAD risk assessment.
+
+```python
+def create_dread_assessment_prompt(
+    threats: str, 
+    mitre_mapping: str, 
+    nvd_vulnerabilities: str
+) -> str
+```
+
+<ParamField path="threats" type="str" required>
+  String containing the list of identified threats from the threat model. This is the primary focus of the assessment.
+</ParamField>
+
+<ParamField path="mitre_mapping" type="str" required>
+  String containing the mapping of threats to MITRE ATT&CK framework techniques. Provides supplemental context for risk assessment.
+</ParamField>
+
+<ParamField path="nvd_vulnerabilities" type="str" required>
+  String containing potential vulnerabilities from the National Vulnerability Database (NVD) that could be exploited by attackers. Provides supplemental context.
+</ParamField>
+
+<ResponseField name="prompt" type="str">
+  Formatted prompt string ready to be sent to `get_dread_assessment()`
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from dread import create_dread_assessment_prompt
+
+threats = """
+STRIDE Threats Identified:
+
+1. Spoofing:
+   - Scenario: Attacker impersonates legitimate user through stolen session tokens
+   - Potential Impact: Unauthorized access to sensitive customer data
+
+2. Tampering:
+   - Scenario: Man-in-the-Middle attack modifies transaction data in transit
+   - Potential Impact: Financial loss and data integrity compromise
+
+3. Repudiation:
+   - Scenario: Insufficient logging allows attackers to perform actions without trace
+   - Potential Impact: Unable to prove malicious activity occurred
+
+4. Information Disclosure:
+   - Scenario: API endpoints expose sensitive data without proper authorization checks
+   - Potential Impact: Exposure of PII and payment card data
+
+5. Denial of Service:
+   - Scenario: Distributed attack overwhelms application infrastructure
+   - Potential Impact: Service unavailability affecting all users
+
+6. Elevation of Privilege:
+   - Scenario: Privilege escalation through parameter manipulation
+   - Potential Impact: Admin access gained by regular users
+"""
+
+mitre_mapping = """
+MITRE ATT&CK Technique Mapping:
+
+- T1550.004 (Use Alternate Authentication Material: Web Session Cookie): Session token theft
+- T1557 (Adversary-in-the-Middle): MitM attacks on transactions
+- T1562.002 (Impair Defenses: Disable Windows Event Logging): Log tampering
+- T1087 (Account Discovery): API enumeration for sensitive data
+- T1498 (Network Denial of Service): DDoS attacks
+- T1068 (Exploitation for Privilege Escalation): Parameter manipulation
+"""
+
+nvd_vulnerabilities = """
+Relevant CVEs:
+
+CVE-2024-1234: Session Fixation Vulnerability (CVSS 8.1)
+  - Allows attackers to hijack user sessions
+  - Affects authentication module
+  
+CVE-2024-5678: Insufficient Transport Layer Protection (CVSS 7.4)
+  - Weak TLS configuration allows MitM attacks
+  - Affects all network communications
+  
+CVE-2024-9012: Missing Authorization (CVSS 9.1)
+  - API endpoints lack proper authorization checks
+  - Affects data access layer
+  
+CVE-2024-3456: Resource Exhaustion (CVSS 6.5)
+  - No rate limiting on API endpoints
+  - Affects application availability
+"""
+
+prompt = create_dread_assessment_prompt(
+    threats=threats,
+    mitre_mapping=mitre_mapping,
+    nvd_vulnerabilities=nvd_vulnerabilities
+)
+
+print(prompt)
+```
+
+**Prompt Instructions:**
+
+The generated prompt instructs the AI to:
+
+1. Act as a cybersecurity expert with 20+ years of experience
+2. Use STRIDE and DREAD methodologies
+3. Focus primarily on the provided threats
+4. Use MITRE ATT&CK mapping as supplemental context
+5. Consider NVD vulnerabilities as additional context
+6. Score each DREAD component on a 1-10 scale:
+   - 1-3: Low
+   - 4-6: Medium
+   - 7-10: High
+7. Return results in JSON format
+8. Include no additional text outside the JSON response
+
+---
+
+### dread_json_to_markdown()
+
+Convert DREAD assessment JSON to a formatted Markdown table for display and reporting.
+
+```python
+def dread_json_to_markdown(dread_assessment: dict[str, Any]) -> str
+```
+
+<ParamField path="dread_assessment" type="dict[str, Any]" required>
+  The DREAD assessment in JSON format, typically returned from `get_dread_assessment()`
+</ParamField>
+
+<ResponseField name="markdown" type="str">
+  Markdown formatted table of the DREAD assessment with calculated risk scores
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from dread import get_dread_assessment, create_dread_assessment_prompt, dread_json_to_markdown
+
+# Generate assessment (as shown in previous examples)
+assessment = get_dread_assessment(
+    api_key="your-api-key",
+    prompt=prompt
+)
+
+# Convert to markdown
+markdown_output = dread_json_to_markdown(assessment)
+print(markdown_output)
+
+# Save to file
+with open("dread_assessment.md", "w") as f:
+    f.write(markdown_output)
+```
+
+**Output Format:**
+
+```markdown
+| Threat Type | Scenario | Damage Potential | Reproducibility | Exploitability | Affected Users | Discoverability | Risk Score |
+|-------------|----------|------------------|-----------------|----------------|----------------|-----------------|-------------|
+| Spoofing | Attacker creates fake OAuth2 provider to steal credentials | 9 | 7 | 6 | 10 | 8 | 8.00 |
+| Tampering | SQL injection in login form allows data manipulation | 10 | 9 | 8 | 9 | 7 | 8.60 |
+| Information Disclosure | Sensitive data exposed through API without authentication | 8 | 10 | 9 | 8 | 9 | 8.80 |
+| Denial of Service | Resource exhaustion through API abuse | 7 | 8 | 7 | 10 | 6 | 7.60 |
+```
+
+**Table Columns:**
+
+1. **Threat Type**: STRIDE category
+2. **Scenario**: Description of the threat
+3. **Damage Potential**: Potential harm (1-10)
+4. **Reproducibility**: Ease of reproducing the attack (1-10)
+5. **Exploitability**: Ease of exploiting the vulnerability (1-10)
+6. **Affected Users**: Number/percentage of users affected (1-10)
+7. **Discoverability**: Ease of discovering the vulnerability (1-10)
+8. **Risk Score**: Calculated average of all DREAD components (formatted to 2 decimal places)
+
+**Exceptions:**
+
+- `TypeError`: Raised if a threat object is not a dictionary
+- `Exception`: Raised for any other conversion errors
+- Errors are logged and displayed to Streamlit UI if used in that context
+
+---
+
+## Complete Workflow Example
+
+Integrate DREAD assessment with threat modeling:
+
+```python
+from threat_model import get_threat_model, create_threat_model_prompt
+from mitre_attack import fetch_mitre_attack_data, process_mitre_attack_data
+from dread import get_dread_assessment, create_dread_assessment_prompt, dread_json_to_markdown
+
+# Step 1: Generate threat model
+threat_prompt = create_threat_model_prompt(
+    app_type="Web application",
+    authentication="OAuth2, MFA",
+    internet_facing="Yes",
+    industry_sector="Financial Services",
+    sensitive_data="PII, Payment data",
+    app_input="Online banking application",
+    nvd_vulnerabilities="CVE-2024-1234: SQL Injection",
+    otx_data="Recent phishing campaigns",
+    technical_ability="High"
+)
+
+threat_model = get_threat_model(
+    api_key="your-api-key",
+    model_name="gpt-4o",
+    prompt=threat_prompt
+)
+
+# Step 2: Map to MITRE ATT&CK
+stix_data = fetch_mitre_attack_data("Web application")
+mitre_mapped = process_mitre_attack_data(
+    stix_data=stix_data,
+    threat_model=threat_model["threat_model"],
+    app_details={...},
+    openai_api_key="your-api-key"
+)
+
+# Step 3: Format data for DREAD assessment
+threats_str = "\n".join([
+    f"{t['Threat Type']}: {t['Scenario']}"
+    for t in threat_model["threat_model"]
+])
+
+mitre_str = "\n".join([
+    f"{item['mitre_techniques'][0]['technique_id']}: {item['mitre_techniques'][0]['name']}"
+    for item in mitre_mapped if item['mitre_techniques']
+])
+
+# Step 4: Generate DREAD assessment
+dread_prompt = create_dread_assessment_prompt(
+    threats=threats_str,
+    mitre_mapping=mitre_str,
+    nvd_vulnerabilities="CVE-2024-1234: SQL Injection"
+)
+
+dread_assessment = get_dread_assessment(
+    api_key="your-api-key",
+    model_name="gpt-4o",
+    prompt=dread_prompt
+)
+
+# Step 5: Convert to markdown and save
+markdown_report = dread_json_to_markdown(dread_assessment)
+
+with open("risk_assessment_report.md", "w") as f:
+    f.write("# DREAD Risk Assessment Report\n\n")
+    f.write(markdown_report)
+
+print("Risk assessment completed and saved to risk_assessment_report.md")
+
+# Step 6: Prioritize threats by risk score
+for threat in dread_assessment["Risk Assessment"]:
+    risk_score = (
+        threat["Damage Potential"] +
+        threat["Reproducibility"] +
+        threat["Exploitability"] +
+        threat["Affected Users"] +
+        threat["Discoverability"]
+    ) / 5
+    
+    if risk_score >= 8:
+        print(f"HIGH PRIORITY: {threat['Threat Type']} - Risk Score: {risk_score:.2f}")
+    elif risk_score >= 5:
+        print(f"MEDIUM PRIORITY: {threat['Threat Type']} - Risk Score: {risk_score:.2f}")
+    else:
+        print(f"LOW PRIORITY: {threat['Threat Type']} - Risk Score: {risk_score:.2f}")
+```
+
+---
+
+## Error Handling
+
+All functions use centralized error handling via `error_handler.handle_exception()` for consistent logging and error reporting.
+
+**Common Errors:**
+
+- Empty API key or prompt: `ValueError`
+- Invalid JSON in response: `json.JSONDecodeError`
+- Invalid threat data structure: `TypeError`
+- API call failures: `Exception` with descriptive message

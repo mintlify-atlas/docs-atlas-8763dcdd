@@ -1,0 +1,724 @@
+---
+title: 'Troubleshooting'
+description: 'Common issues and solutions for AegisShield deployment and operation'
+---
+
+# Troubleshooting
+
+This guide covers common issues encountered when using AegisShield and provides practical solutions.
+
+## API Key Issues
+
+### OpenAI API Key Errors
+
+<AccordionGroup>
+  <Accordion title="Error: OpenAI API key is required">
+    **Symptom**: Application fails to start or generate threat models
+    
+    **Cause**: Missing or incorrectly configured OpenAI API key
+    
+    **Solution**:
+    ```bash
+    # Verify local_config.py exists and contains key
+    cat local_config.py
+    
+    # Should contain:
+    # default_openai_api_key="sk-proj-..."
+    
+    # If missing, create it:
+    echo 'default_openai_api_key="YOUR_KEY_HERE"' >> local_config.py
+    ```
+    
+    **Verify key format**:
+    - Should start with `sk-proj-` or `sk-`
+    - No extra spaces or quotes
+    - Approximately 50-60 characters long
+  </Accordion>
+
+  <Accordion title="Error: Incorrect API key provided">
+    **Symptom**: Authentication error from OpenAI API
+    
+    **Causes**:
+    1. Key was copied incorrectly (extra spaces, truncated)
+    2. Key was revoked or expired
+    3. Key doesn't have GPT-4o access
+    
+    **Solutions**:
+    ```python
+    # Test your OpenAI key
+    import openai
+    import local_config as conf
+    
+    openai.api_key = conf.default_openai_api_key
+    
+    try:
+        response = openai.models.list()
+        print("✓ OpenAI API key is valid")
+        models = [m.id for m in response.data if 'gpt-4' in m.id]
+        print(f"Available GPT-4 models: {models}")
+    except Exception as e:
+        print(f"✗ Error: {e}")
+    ```
+    
+    **Fix**:
+    1. Go to [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+    2. Create a new API key
+    3. Update `local_config.py` with new key
+    4. Verify account has GPT-4o access (check usage limits)
+  </Accordion>
+
+  <Accordion title="Error: Rate limit exceeded">
+    **Symptom**: "Rate limit reached for requests" or "429 Too Many Requests"
+    
+    **Cause**: Too many API calls in short time period
+    
+    **Solutions**:
+    
+    **For interactive use**:
+    - Wait 60 seconds before retrying
+    - Reduce complexity of prompts
+    
+    **For batch processing**:
+    ```python
+    # In main-batch.py, reduce parallel workers
+    workers = 1  # Instead of 3
+    retries = 10  # Increase retry attempts
+    ```
+    
+    **Upgrade OpenAI tier**:
+    - Tier 1 (Free): 500 RPM
+    - Tier 2: 5,000 RPM  
+    - Tier 3+: Higher limits
+    
+    Check your tier at [platform.openai.com/settings/organization/limits](https://platform.openai.com/settings/organization/limits)
+  </Accordion>
+
+  <Accordion title="Error: Model 'gpt-4o' not found">
+    **Symptom**: "The model `gpt-4o` does not exist"
+    
+    **Cause**: Account doesn't have GPT-4o access
+    
+    **Solution**:
+    1. Verify GPT-4 access in OpenAI account
+    2. Add payment method (GPT-4o requires paid account)
+    3. Check [platform.openai.com/account/billing](https://platform.openai.com/account/billing)
+    
+    **Temporary workaround** (lower quality):
+    ```python
+    # In main.py or main-batch.py
+    selected_model = "gpt-4-turbo"  # or "gpt-4"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### NVD API Issues
+
+<AccordionGroup>
+  <Accordion title="Slow vulnerability searches">
+    **Symptom**: Technology selection taking 30+ seconds
+    
+    **Cause**: Using NVD without API key (5 requests/30s limit)
+    
+    **Solution**:
+    ```bash
+    # Obtain NVD API key (free, 50 requests/30s)
+    # Visit: https://nvd.nist.gov/developers/request-an-api-key
+    
+    # Add to local_config.py
+    echo 'default_nvd_api_key="YOUR_NVD_KEY"' >> local_config.py
+    ```
+    
+    **Verify**:
+    ```bash
+    curl "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=1" \
+      -H "apiKey: YOUR_NVD_KEY"
+    ```
+  </Accordion>
+
+  <Accordion title="Error: No vulnerabilities found">
+    **Symptom**: NVD returns empty results for valid technologies
+    
+    **Causes**:
+    1. Technology not in NVD database
+    2. Incorrect CPE name format
+    3. NVD API temporarily down
+    
+    **Debug**:
+    ```python
+    # Test NVD search manually
+    import nvdlib
+    import local_config as conf
+    
+    # Search for PostgreSQL vulnerabilities
+    cves = nvdlib.searchCVE(
+        cpeName='cpe:2.3:a:postgresql:postgresql:14.0',
+        key=conf.default_nvd_api_key,
+        limit=5
+    )
+    
+    for cve in cves:
+        print(f"{cve.id}: {cve.descriptions[0].value[:100]}")
+    ```
+    
+    **Solutions**:
+    - Verify CPE name format is correct
+    - Try broader search (e.g., remove version)
+    - Check NVD status: [nvd.nist.gov](https://nvd.nist.gov)
+  </Accordion>
+</AccordionGroup>
+
+### AlienVault OTX Issues
+
+<AccordionGroup>
+  <Accordion title="Error: Invalid AlienVault API key">
+    **Symptom**: "401 Unauthorized" or "Invalid API key"
+    
+    **Solution**:
+    1. Log in to [otx.alienvault.com](https://otx.alienvault.com)
+    2. Go to Settings → API Integration
+    3. Copy the OTX Key (not username)
+    4. Update `local_config.py`:
+    ```python
+    default_alienvault_api_key="YOUR_OTX_KEY_HERE"
+    ```
+  </Accordion>
+
+  <Accordion title="No OTX data returned">
+    **Symptom**: Empty or minimal threat intelligence results
+    
+    **Cause**: Limited OTX pulses for selected industry/keywords
+    
+    **Expected behavior**: OTX data is supplementary; empty results don't prevent threat model generation
+    
+    **Verify connectivity**:
+    ```bash
+    curl -X GET "https://otx.alienvault.com/api/v1/pulses/subscribed" \
+      -H "X-OTX-API-KEY: YOUR_KEY"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Missing MITRE ATT&CK Data
+
+<AccordionGroup>
+  <Accordion title="Error: No MITRE ATT&CK data found">
+    **Symptom**: Missing MITRE technique mappings in threat models
+    
+    **Cause**: MITRE_ATTACK_DATA directory missing or incomplete
+    
+    **Solution**:
+    ```bash
+    # Check if directory exists
+    ls -la MITRE_ATTACK_DATA/
+    
+    # Should contain:
+    # - enterprise-attack.json
+    # - mobile-attack.json
+    # - ics-attack.json
+    
+    # If missing, download:
+    mkdir -p MITRE_ATTACK_DATA
+    
+    curl -o MITRE_ATTACK_DATA/enterprise-attack.json \
+      https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json
+    
+    curl -o MITRE_ATTACK_DATA/mobile-attack.json \
+      https://raw.githubusercontent.com/mitre/cti/master/mobile-attack/mobile-attack.json
+    
+    curl -o MITRE_ATTACK_DATA/ics-attack.json \
+      https://raw.githubusercontent.com/mitre/cti/master/ics-attack/ics-attack.json
+    ```
+  </Accordion>
+
+  <Accordion title="Error: Failed to parse STIX data">
+    **Symptom**: JSON parsing errors when loading MITRE data
+    
+    **Cause**: Corrupted or incomplete JSON files
+    
+    **Solution**:
+    ```bash
+    # Validate JSON files
+    python -m json.tool MITRE_ATTACK_DATA/enterprise-attack.json > /dev/null
+    
+    # If error, re-download:
+    rm MITRE_ATTACK_DATA/*.json
+    # Then re-run download commands from above
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Application Startup Issues
+
+<AccordionGroup>
+  <Accordion title="Port 8501 already in use">
+    **Symptom**: "Address already in use" or "Port 8501 is already allocated"
+    
+    **Solutions**:
+    
+    **Option 1: Use different port**
+    ```bash
+    streamlit run main.py --server.port 8502
+    ```
+    
+    **Option 2: Kill existing process**
+    ```bash
+    # Find process using port 8501
+    lsof -ti:8501
+    
+    # Kill the process
+    kill $(lsof -ti:8501)
+    
+    # Or force kill
+    kill -9 $(lsof -ti:8501)
+    ```
+    
+    **Option 3: Stop Docker container**
+    ```bash
+    docker ps | grep 8501
+    docker stop <container-id>
+    ```
+  </Accordion>
+
+  <Accordion title="ModuleNotFoundError">
+    **Symptom**: "No module named 'streamlit'" or other import errors
+    
+    **Cause**: Missing dependencies
+    
+    **Solution**:
+    ```bash
+    # Verify Python version (requires 3.9+, recommended 3.12)
+    python --version
+    
+    # Install dependencies
+    pip install -r requirements.txt
+    
+    # If still failing, create fresh virtual environment
+    python -m venv venv
+    source venv/bin/activate  # Linux/Mac
+    # or
+    venv\Scripts\activate  # Windows
+    
+    pip install -r requirements.txt
+    ```
+  </Accordion>
+
+  <Accordion title="Streamlit not rendering correctly">
+    **Symptom**: Blank page, JavaScript errors, or broken UI
+    
+    **Solutions**:
+    
+    **Clear Streamlit cache**:
+    ```bash
+    rm -rf ~/.streamlit/cache
+    streamlit cache clear
+    ```
+    
+    **Update Streamlit**:
+    ```bash
+    pip install --upgrade streamlit
+    ```
+    
+    **Try different browser**:
+    - Chrome/Edge (recommended)
+    - Firefox
+    - Safari
+    
+    **Disable browser extensions**:
+    - Ad blockers may interfere
+    - Privacy extensions may block WebSocket
+  </Accordion>
+</AccordionGroup>
+
+## Memory and Performance Issues
+
+<AccordionGroup>
+  <Accordion title="Out of memory during batch processing">
+    **Symptom**: Python crashes with "MemoryError" or "Killed"
+    
+    **Cause**: Processing too many threat models concurrently
+    
+    **Solutions**:
+    
+    **Reduce parallel workers**:
+    ```python
+    # In main-batch.py
+    workers = 1  # Sequential processing
+    ```
+    
+    **Process case studies individually**:
+    ```python
+    # In main-batch.py
+    SPECIFIC_CASE_STUDY = 1  # Process one at a time
+    ```
+    
+    **Increase system memory**:
+    ```bash
+    # Check available memory
+    free -h  # Linux
+    # or
+    vm_stat  # macOS
+    ```
+    
+    **For Docker**:
+    ```bash
+    docker run --memory="4g" -p 8501:8501 aegisshield:latest
+    ```
+  </Accordion>
+
+  <Accordion title="Slow threat model generation">
+    **Symptom**: Taking 5+ minutes per threat model
+    
+    **Causes**:
+    1. OpenAI API latency
+    2. NVD API rate limiting
+    3. Large application descriptions
+    4. Network connectivity issues
+    
+    **Solutions**:
+    
+    **Optimize API usage**:
+    ```python
+    # Get NVD API key (10x faster)
+    # Reduce description length (<4000 chars recommended)
+    # Use workers=3 in batch mode for parallel processing
+    ```
+    
+    **Check network latency**:
+    ```bash
+    ping api.openai.com
+    curl -w "@-" -o /dev/null -s https://api.openai.com <<'EOF'
+    time_namelookup:  %{time_namelookup}\n
+    time_connect:  %{time_connect}\n
+    time_total:  %{time_total}\n
+    EOF
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## PDF Generation Issues
+
+<AccordionGroup>
+  <Accordion title="Error: PDF generation failed">
+    **Symptom**: "Failed to generate PDF" or xhtml2pdf errors
+    
+    **Causes**:
+    1. Missing Cairo/Pango libraries (Linux)
+    2. Large threat models timing out
+    3. Invalid HTML/CSS in report template
+    
+    **Solutions**:
+    
+    **Install system dependencies (Linux)**:
+    ```bash
+    sudo apt-get update
+    sudo apt-get install -y \
+      libcairo2-dev \
+      libpango1.0-dev \
+      libpangocairo-1.0-0 \
+      libgdk-pixbuf2.0-dev
+    
+    # Reinstall Python packages
+    pip install --force-reinstall xhtml2pdf
+    ```
+    
+    **macOS**:
+    ```bash
+    brew install cairo pango gdk-pixbuf
+    ```
+    
+    **Windows**: Use Docker (system dependencies difficult to install)
+  </Accordion>
+
+  <Accordion title="PDF missing images or formatting">
+    **Symptom**: PDF generated but missing logo or broken layout
+    
+    **Cause**: Missing static assets or CSS issues
+    
+    **Solution**:
+    ```bash
+    # Verify aegisshield.png exists
+    ls -la aegisshield.png
+    
+    # Check file permissions
+    chmod 644 aegisshield.png
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Docker Issues
+
+<AccordionGroup>
+  <Accordion title="Container fails to start">
+    **Symptom**: Container exits immediately after starting
+    
+    **Debug**:
+    ```bash
+    # Check container logs
+    docker logs aegisshield
+    
+    # Run interactively to see errors
+    docker run -it --rm -p 8501:8501 aegisshield:latest
+    ```
+    
+    **Common causes**:
+    1. Missing API keys (set via `-e` flags)
+    2. Port conflict (use different port)
+    3. Insufficient memory (increase with `--memory`)
+  </Accordion>
+
+  <Accordion title="Health check failing">
+    **Symptom**: Docker marks container as "unhealthy"
+    
+    **Check health status**:
+    ```bash
+    docker inspect --format='{{json .State.Health}}' aegisshield | jq
+    ```
+    
+    **Solutions**:
+    1. Increase `start_period` (Streamlit needs ~30-40s to start)
+    2. Verify curl is installed in container
+    3. Check Streamlit is actually listening:
+    ```bash
+    docker exec aegisshield curl http://localhost:8501/_stcore/health
+    ```
+  </Accordion>
+
+  <Accordion title="Cannot access from host browser">
+    **Symptom**: localhost:8501 not loading
+    
+    **Solutions**:
+    
+    **Verify port mapping**:
+    ```bash
+    docker ps
+    # Should show: 0.0.0.0:8501->8501/tcp
+    ```
+    
+    **Check firewall**:
+    ```bash
+    # Linux
+    sudo ufw allow 8501
+    
+    # macOS
+    # System Preferences → Security & Privacy → Firewall
+    ```
+    
+    **Verify container network**:
+    ```bash
+    docker exec aegisshield curl http://localhost:8501/_stcore/health
+    ```
+    
+    If this works but browser doesn't, issue is host networking.
+  </Accordion>
+</AccordionGroup>
+
+## Batch Processing Issues
+
+<AccordionGroup>
+  <Accordion title="Invalid threat model validation errors">
+    **Symptom**: "Invalid threat model. Regenerating..." repeated multiple times
+    
+    **Cause**: Generated models not meeting STRIDE criteria (3 threats per category)
+    
+    **Solutions**:
+    
+    **Check prompt clarity**:
+    ```python
+    # Verify batch input has sufficient detail
+    cat batch_inputs/Case-Study-X-schema.json | jq .app_input
+    ```
+    
+    **Increase retries**:
+    ```python
+    # In main-batch.py
+    retries = 10  # Up from 6
+    ```
+    
+    **Check OpenAI model**:
+    ```python
+    # Ensure using GPT-4o (not GPT-3.5)
+    selected_model = "gpt-4o"
+    ```
+  </Accordion>
+
+  <Accordion title="Batch processing times out">
+    **Symptom**: Some batches never complete or timeout errors
+    
+    **Solution**:
+    ```python
+    # In main-batch.py, increase timeout
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [...]  
+        try:
+            for future in as_completed(futures, timeout=7200):  # 2 hours
+                ...
+        except TimeoutError:
+            print("Timeout occurred")
+    ```
+  </Accordion>
+
+  <Accordion title="Error log shows repeated failures">
+    **Symptom**: `error_log.txt` filled with errors
+    
+    **Check error log**:
+    ```bash
+    cat error_log.txt | tail -20
+    ```
+    
+    **Common errors**:
+    - API rate limits → Reduce `workers`
+    - Invalid JSON in batch inputs → Validate with `jq`
+    - MITRE data missing → Download STIX files
+  </Accordion>
+</AccordionGroup>
+
+## Streamlit-Specific Issues
+
+<AccordionGroup>
+  <Accordion title="Session state errors">
+    **Symptom**: KeyError for session state variables
+    
+    **Cause**: Streamlit session restarted or cache cleared
+    
+    **Solution**: Reload the page (Streamlit automatically reinitializes)
+    
+    **Prevention**: Application already initializes all required state variables at startup
+  </Accordion>
+
+  <Accordion title="File upload not working">
+    **Symptom**: Architecture diagram upload fails or doesn't process
+    
+    **Causes**:
+    1. File too large (>200MB default)
+    2. Unsupported file format
+    3. Streamlit upload widget issue
+    
+    **Solutions**:
+    
+    **Increase upload size**:
+    ```toml
+    # .streamlit/config.toml
+    [server]
+    maxUploadSize = 500
+    ```
+    
+    **Supported formats**: PNG, JPG, JPEG, PDF
+    
+    **Clear cache and retry**:
+    ```bash
+    streamlit cache clear
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Debug Mode
+
+Enable detailed logging for troubleshooting:
+
+```bash
+# Run with debug logging
+streamlit run main.py --logger.level debug
+
+# Check Streamlit logs
+tail -f ~/.streamlit/logs/streamlit.log
+
+# Application error logs
+tail -f logs/error.log
+```
+
+### Enable Python Debug Logging
+
+```python
+# Add to main.py for detailed debugging
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('debug.log'),
+        logging.StreamHandler()
+    ]
+)
+```
+
+## Getting Help
+
+If issues persist:
+
+<Steps>
+  <Step title="Check Existing Issues">
+    Search [GitHub Issues](https://github.com/mgrofsky/AegisShield/issues) for similar problems
+  </Step>
+
+  <Step title="Collect Debug Information">
+    ```bash
+    # System info
+    python --version
+    pip list | grep -E "streamlit|openai|nvdlib"
+    
+    # Application logs
+    tail -100 logs/error.log > debug_output.txt
+    tail -100 ~/.streamlit/logs/streamlit.log >> debug_output.txt
+    ```
+  </Step>
+
+  <Step title="Create GitHub Issue">
+    [Open new issue](https://github.com/mgrofsky/AegisShield/issues/new) with:
+    - Clear description of problem
+    - Steps to reproduce
+    - Debug logs (remove sensitive data)
+    - Environment details (OS, Python version, deployment method)
+  </Step>
+</Steps>
+
+## Quick Reference
+
+### Common Commands
+
+```bash
+# Start application
+streamlit run main.py
+
+# Start on different port
+streamlit run main.py --server.port 8502
+
+# Clear cache
+streamlit cache clear
+
+# Check Python environment
+pip list | grep streamlit
+
+# Test configuration
+python -c "import local_config; print('Config OK')"
+
+# View logs
+tail -f logs/error.log
+```
+
+### Configuration File Locations
+
+```
+Project Root/
+├── local_config.py           # API keys
+├── .streamlit/
+│   ├── config.toml          # Streamlit settings
+│   └── secrets.toml         # Streamlit Cloud secrets
+├── logs/
+│   └── error.log            # Application errors
+└── MITRE_ATTACK_DATA/       # Threat intelligence
+    ├── enterprise-attack.json
+    ├── mobile-attack.json
+    └── ics-attack.json
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Review configuration options
+  </Card>
+  <Card title="Docker Deployment" icon="docker" href="/guides/docker-deployment">
+    Deploy with Docker
+  </Card>
+</CardGroup>

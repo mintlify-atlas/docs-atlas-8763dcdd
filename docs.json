@@ -1,122 +1,137 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "AegisShield",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#1e3a8a",
+    "light": "#3b82f6",
+    "dark": "#0f172a"
   },
   "favicon": "/favicon.svg",
-  "navigation": {
-    "tabs": [
-      {
-        "tab": "Guides",
-        "groups": [
-          {
-            "group": "Getting started",
-            "pages": [
-              "index",
-              "quickstart",
-              "development"
-            ]
-          },
-          {
-            "group": "Customization",
-            "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
-          },
-          {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "API reference",
-        "groups": [
-          {
-            "group": "API documentation",
-            "pages": [
-              "api-reference/introduction"
-            ]
-          },
-          {
-            "group": "Endpoint examples",
-            "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
-            ]
-          }
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
   "logo": {
     "light": "/logo/light.svg",
     "dark": "/logo/dark.svg"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/mgrofsky/AegisShield"
     }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/mgrofsky/AegisShield"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/threat-modeling",
+              "features/mitre-attack",
+              "features/risk-assessment",
+              "features/attack-trees",
+              "features/test-cases"
+            ]
+          },
+          {
+            "group": "Threat Intelligence",
+            "pages": [
+              "intelligence/nvd-integration",
+              "intelligence/alienvault-otx",
+              "intelligence/mitre-data"
+            ]
+          },
+          {
+            "group": "Workflows",
+            "pages": [
+              "workflows/seven-step-process",
+              "workflows/batch-processing",
+              "workflows/pdf-reports"
+            ]
+          },
+          {
+            "group": "Compliance",
+            "pages": [
+              "compliance/nist-sp-800-53",
+              "compliance/fedramp",
+              "compliance/grc-integration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core Modules",
+            "pages": [
+              "api/threat-model",
+              "api/mitre-attack",
+              "api/attack-tree",
+              "api/dread",
+              "api/mitigations"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "api/nvd-search",
+              "api/alienvault-search",
+              "api/api-key-handler"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/error-handler",
+              "api/test-cases"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Using AegisShield",
+            "pages": [
+              "guides/application-description",
+              "guides/technology-selection",
+              "guides/interpreting-results",
+              "guides/customization"
+            ]
+          },
+          {
+            "group": "Research & Validation",
+            "pages": [
+              "guides/batch-generation",
+              "guides/case-studies",
+              "guides/research-methodology"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "guides/docker-deployment",
+              "guides/configuration",
+              "guides/troubleshooting"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

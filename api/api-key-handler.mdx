@@ -1,0 +1,246 @@
+---
+title: 'API Key Handler'
+description: 'API reference for API key management and Streamlit UI functions'
+---
+
+## Overview
+
+The API Key Handler module provides functions for loading and managing API keys in the AegisShield Streamlit application. It implements NIST SP 800-53 Rev. 5 controls for authenticator management and secure key storage.
+
+### NIST SP 800-53 Rev. 5 Controls Implemented
+
+- **IA-5** (Authenticator Management): API key management and secure storage
+- **SC-12** (Cryptographic Key Establishment and Management): Key lifecycle management
+- **AC-3** (Access Enforcement): Access control through API key validation
+- **IA-2** (Identification and Authentication): Authentication to external services
+- **IA-5(1)**: Password-Based Authentication
+- **SC-12(2)**: Symmetric Keys
+
+---
+
+## Functions
+
+### load_api_keys()
+
+```python
+def load_api_keys()
+```
+
+Load NVD and AlienVault API keys from Streamlit secrets. If keys are not available in secrets, initializes them as empty strings in session state.
+
+**Parameters:** None
+
+<ResponseField name="return" type="None">
+  This function does not return a value. It sets session state variables:
+  - `st.session_state['nvd_api_key']`: NVD API key or empty string
+  - `st.session_state['alienvault_api_key']`: AlienVault API key or empty string
+</ResponseField>
+
+#### Behavior
+
+- Checks `st.secrets` for pre-configured API keys
+- If keys exist in secrets, loads them into session state
+- If keys don't exist, initializes session state with empty strings
+- Handles `KeyError` exceptions gracefully
+
+#### Example Usage
+
+```python
+import streamlit as st
+from api_key_handler import load_api_keys
+
+# Load API keys at application startup
+load_api_keys()
+
+# Access keys from session state
+if st.session_state.get('nvd_api_key'):
+    print("NVD API key is configured")
+else:
+    print("NVD API key needs to be entered by user")
+```
+
+#### Streamlit Secrets Configuration
+
+To pre-configure API keys, add them to `.streamlit/secrets.toml`:
+
+```toml
+# .streamlit/secrets.toml
+nvd_api_key = "your_nvd_api_key_here"
+alienvault_api_key = "your_alienvault_api_key_here"
+```
+
+---
+
+### render_api_key_inputs()
+
+```python
+def render_api_key_inputs()
+```
+
+Render API key input fields in the Streamlit sidebar for OpenAI, NVD, and AlienVault APIs. Only shows input fields for keys not already loaded from secrets.
+
+**Parameters:** None
+
+<ResponseField name="return" type="None">
+  This function does not return a value. It renders UI components and updates session state:
+  - `st.session_state['model_provider']`: Selected model provider (default: "OpenAI API")
+  - `st.session_state['selected_model']`: Selected OpenAI model (default: "gpt-4o")
+  - `st.session_state['openai_api_key']`: OpenAI API key from user input
+  - `st.session_state['nvd_api_key']`: NVD API key from user input (if not in secrets)
+  - `st.session_state['alienvault_api_key']`: AlienVault API key from user input (if not in secrets)
+</ResponseField>
+
+#### UI Components Rendered
+
+1. **OpenAI Configuration** (always shown):
+   - Markdown instructions with API key link
+   - Model selector dropdown (gpt-4o, gpt-5)
+   - Password-masked text input for API key
+   - Error message if key is missing
+   - Usage instructions
+
+2. **NVD API Key** (conditional):
+   - Only shown if not loaded from secrets
+   - Password-masked text input
+   - Help text with link to NVD API key request page
+
+3. **AlienVault API Key** (conditional):
+   - Only shown if not loaded from secrets
+   - Password-masked text input
+   - Help text with link to AlienVault OTX console
+
+#### Security Features
+
+- All API key inputs use `type="password"` for masked display (NIST IA-5(1))
+- Keys are only stored in browser session state
+- Keys are not saved to disk or shared
+- Input validation requires OpenAI API key to proceed
+
+#### Example Usage
+
+```python
+import streamlit as st
+from api_key_handler import load_api_keys, render_api_key_inputs
+
+# Application setup
+st.set_page_config(page_title="AegisShield", page_icon="🛡️")
+
+# Load API keys from secrets
+load_api_keys()
+
+# Render sidebar with API key inputs
+with st.sidebar:
+    st.title("⚙️ Configuration")
+    render_api_key_inputs()
+    
+    # Check if required keys are available
+    if not st.session_state.get('openai_api_key'):
+        st.stop()
+
+# Main application logic
+st.title("AegisShield Threat Modeling")
+# ... rest of application
+```
+
+---
+
+## Session State Variables
+
+The module manages the following Streamlit session state variables:
+
+### API Keys
+
+<ParamField path="openai_api_key" type="str">
+  OpenAI API key for LLM access (required)
+</ParamField>
+
+<ParamField path="nvd_api_key" type="str">
+  National Vulnerability Database API key (optional, loaded from secrets or user input)
+</ParamField>
+
+<ParamField path="alienvault_api_key" type="str">
+  AlienVault OTX API key (optional, loaded from secrets or user input)
+</ParamField>
+
+### Model Configuration
+
+<ParamField path="model_provider" type="str" default="OpenAI API">
+  Selected model provider (currently only OpenAI supported)
+</ParamField>
+
+<ParamField path="selected_model" type="str" default="gpt-4o">
+  Selected OpenAI model ("gpt-4o" or "gpt-5")
+</ParamField>
+
+---
+
+## Implementation Notes
+
+### API Key Sources Priority
+
+1. **Streamlit Secrets** (highest priority):
+   - Pre-configured in `.streamlit/secrets.toml`
+   - Loaded automatically by `load_api_keys()`
+   - Not shown in UI if already loaded
+
+2. **User Input** (fallback):
+   - Rendered by `render_api_key_inputs()`
+   - Stored in session state
+   - Persists only for current browser session
+
+### Security Best Practices
+
+- **Masked Display**: All API key inputs use password type
+- **Session-Only Storage**: Keys never written to disk
+- **No Logging**: API keys are never logged or exposed
+- **Validation**: OpenAI key required before application proceeds
+- **Error Handling**: Graceful fallback if secrets don't exist
+
+### Model Selection
+
+Supported OpenAI models:
+- **gpt-4o**: Standard model, balanced performance
+- **gpt-5**: More verbose output, enhanced capabilities
+
+### Conditional Rendering
+
+The UI intelligently shows/hides inputs:
+- OpenAI fields: Always shown (required)
+- NVD field: Hidden if key exists in secrets
+- AlienVault field: Hidden if key exists in secrets
+
+This reduces UI clutter when keys are pre-configured.
+
+### External Links
+
+The module provides helpful links for users:
+- [OpenAI API Keys](https://platform.openai.com/account/api-keys)
+- [NVD API Key Request](https://nvd.nist.gov/developers/request-an-api-key)
+- [AlienVault OTX Console](https://otx.alienvault.com/api)
+
+---
+
+## Error Handling
+
+### KeyError Exception
+
+```python
+try:
+    # Try to load from secrets
+    if 'nvd_api_key' in st.secrets:
+        st.session_state['nvd_api_key'] = st.secrets['nvd_api_key']
+except KeyError:
+    # Fallback to empty string
+    st.session_state['nvd_api_key'] = ""
+```
+
+Graceful handling ensures the application works whether secrets are configured or not.
+
+### Missing OpenAI Key
+
+```python
+if not openai_api_key:
+    st.error("⚠️ OpenAI API key is required to proceed")
+```
+
+User-friendly error message when required key is missing.

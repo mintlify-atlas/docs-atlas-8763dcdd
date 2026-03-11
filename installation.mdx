@@ -1,0 +1,681 @@
+---
+title: "Installation"
+description: "Complete installation guide for AegisShield in various environments"
+---
+
+## System Requirements
+
+Before installing AegisShield, ensure your system meets these requirements:
+
+<CardGroup cols={2}>
+  <Card title="Python Version" icon="python">
+    Python 3.12 or higher (3.9+ supported, 3.12 recommended)
+  </Card>
+
+  <Card title="Memory" icon="memory">
+    Minimum 4GB RAM (8GB+ recommended for large threat models)
+  </Card>
+
+  <Card title="Disk Space" icon="hard-drive">
+    500MB for application and dependencies
+  </Card>
+
+  <Card title="Internet Access" icon="wifi">
+    Required for API calls to OpenAI, NVD, and AlienVault OTX
+  </Card>
+</CardGroup>
+
+### Supported Platforms
+
+- **Linux**: Ubuntu 20.04+, Debian 11+, RHEL 8+, CentOS 8+
+- **macOS**: 11 (Big Sur) or later
+- **Windows**: 10/11 with WSL2 recommended
+- **Docker**: Any platform with Docker 20.10+
+
+## Installation Methods
+
+<Tabs>
+  <Tab title="Local Installation">
+    ### 1. Clone the Repository
+
+    ```bash
+    git clone https://github.com/mgrofsky/AegisShield.git
+    cd AegisShield
+    ```
+
+    ### 2. Create Virtual Environment
+
+    Using a virtual environment is **strongly recommended** to avoid dependency conflicts:
+
+    <CodeGroup>
+    ```bash Linux/macOS
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
+
+    ```bash Windows (PowerShell)
+    python -m venv venv
+    .\venv\Scripts\Activate.ps1
+    ```
+
+    ```bash Windows (Command Prompt)
+    python -m venv venv
+    venv\Scripts\activate.bat
+    ```
+    </CodeGroup>
+
+    <Tip>
+    You'll know the virtual environment is active when you see `(venv)` in your terminal prompt.
+    </Tip>
+
+    ### 3. Install Dependencies
+
+    Install all required Python packages:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+    **Dependencies installed:**
+    - `openai` - OpenAI API client for GPT-4o
+    - `streamlit` - Web application framework
+    - `OTXv2` - AlienVault OTX threat intelligence API
+    - `nvdlib` - National Vulnerability Database API
+    - `setuptools` - Python package installation utilities
+    - `markdown2` - Markdown to HTML conversion
+    - `xhtml2pdf` - PDF report generation
+    - `pytest`, `pytest-cov`, `pytest-mock` - Testing frameworks
+
+    ### 4. Verify Installation
+
+    Check that all dependencies are installed correctly:
+
+    ```bash
+    python -c "import streamlit, openai, OTXv2, nvdlib; print('All dependencies installed successfully!')"
+    ```
+
+    ### 5. Configure API Keys
+
+    See the [API Key Configuration](#api-key-configuration) section below.
+  </Tab>
+
+  <Tab title="Docker">
+    ### Quick Start with Docker
+
+    The easiest way to run AegisShield without managing dependencies:
+
+    ```bash
+    # Build the Docker image
+    docker build -t aegisshield .
+
+    # Run the container
+    docker run -p 8501:8501 \
+      -e OPENAI_API_KEY="your-openai-key" \
+      -e NVD_API_KEY="your-nvd-key" \
+      -e ALIENVAULT_API_KEY="your-alienvault-key" \
+      aegisshield
+    ```
+
+    Access the application at `http://localhost:8501`
+
+    ### Docker with Configuration File
+
+    For persistent configuration, mount your `local_config.py`:
+
+    ```bash
+    # Create local_config.py with your keys
+    cat > local_config.py << EOF
+    default_nvd_api_key="your-nvd-key"
+    default_openai_api_key="your-openai-key"
+    default_alienvault_api_key="your-alienvault-key"
+    EOF
+
+    # Run with mounted configuration
+    docker run -p 8501:8501 \
+      -v $(pwd)/local_config.py:/app/local_config.py:ro \
+      aegisshield
+    ```
+
+    ### Docker Compose
+
+    For production deployments with automatic restarts:
+
+    ```yaml docker-compose.yml
+    version: '3.8'
+    
+    services:
+      aegisshield:
+        build: .
+        ports:
+          - "8501:8501"
+        environment:
+          - OPENAI_API_KEY=${OPENAI_API_KEY}
+          - NVD_API_KEY=${NVD_API_KEY}
+          - ALIENVAULT_API_KEY=${ALIENVAULT_API_KEY}
+        volumes:
+          - ./local_config.py:/app/local_config.py:ro
+        restart: unless-stopped
+        healthcheck:
+          test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+          interval: 30s
+          timeout: 10s
+          retries: 3
+    ```
+
+    Start with:
+
+    ```bash
+    docker-compose up -d
+    ```
+
+    ### Dockerfile Details
+
+    The included Dockerfile (`/home/daytona/workspace/source/Dockerfile:1-34`) provides:
+
+    - **Base Image**: Python 3.13-slim for minimal footprint
+    - **System Dependencies**: Cairo, Pango, GDK-PixBuf for PDF generation
+    - **Health Check**: Automatic monitoring on port 8501
+    - **Optimized Build**: Multi-stage build with no-cache pip installs
+
+    <Warning>
+    The container runs as root by default. For production, consider running as a non-root user:
+
+    ```dockerfile
+    # Add before ENTRYPOINT
+    RUN useradd -m -u 1000 aegisshield
+    USER aegisshield
+    ```
+    </Warning>
+  </Tab>
+
+  <Tab title="Development Setup">
+    ### For Contributors and Developers
+
+    Set up a development environment with testing and code quality tools:
+
+    ```bash
+    # Clone the repository
+    git clone https://github.com/mgrofsky/AegisShield.git
+    cd AegisShield
+
+    # Create virtual environment
+    python3 -m venv venv
+    source venv/bin/activate
+
+    # Install all dependencies including testing tools
+    pip install -r requirements.txt
+
+    # Install development tools
+    pip install ruff pylint black
+
+    # Verify installation with tests
+    pytest --cov=.
+    ```
+
+    ### Code Quality Checks
+
+    Run code quality checks before committing:
+
+    ```bash
+    # Format code with Ruff
+    ruff format .
+
+    # Check for linting issues
+    ruff check .
+
+    # Run Pylint
+    pylint *.py
+    ```
+
+    ### Configuration
+
+    The project uses `pyproject.toml` for configuration:
+
+    ```toml
+    [tool.ruff]
+    line-length = 100
+    target-version = "py312"
+
+    [tool.ruff.lint]
+    select = ["E", "F", "I", "B", "UP", "C4"]
+    ignore = ["E501", "B007", "F841"]
+    ```
+
+    ### Running Tests
+
+    ```bash
+    # Run all tests
+    pytest
+
+    # Run with coverage report
+    pytest --cov=. --cov-report=html
+
+    # Run specific test file
+    pytest tests/test_cases.py
+    ```
+  </Tab>
+</Tabs>
+
+## API Key Configuration
+
+AegisShield requires three API keys to function. You can configure them in two ways:
+
+### Method 1: Local Configuration File (Recommended)
+
+Create a `local_config.py` file in the project root:
+
+```python local_config.py
+default_nvd_api_key="your-nvd-api-key-here"
+default_openai_api_key="your-openai-api-key-here"
+default_alienvault_api_key="your-alienvault-api-key-here"
+```
+
+<Warning>
+**Security Best Practices:**
+- Never commit `local_config.py` to version control
+- Use environment-specific configuration files
+- Rotate API keys regularly
+- Use read-only API keys when possible
+</Warning>
+
+### Method 2: Streamlit Secrets
+
+For deployments using Streamlit Cloud or shared environments:
+
+Create `.streamlit/secrets.toml`:
+
+```toml .streamlit/secrets.toml
+nvd_api_key = "your-nvd-api-key-here"
+openai_api_key = "your-openai-api-key-here"
+alienvault_api_key = "your-alienvault-api-key-here"
+```
+
+### Method 3: UI Input (Development Only)
+
+For testing, you can enter API keys directly in the application sidebar. **Not recommended for production.**
+
+<Note>
+The application checks for keys in this order:
+1. Streamlit secrets (`.streamlit/secrets.toml`)
+2. Local configuration (`local_config.py`)
+3. User input in the UI sidebar
+</Note>
+
+## Obtaining API Keys
+
+### OpenAI API Key
+
+<Steps>
+  <Step title="Create OpenAI Account">
+    Visit [OpenAI Platform](https://platform.openai.com) and sign up or log in.
+  </Step>
+
+  <Step title="Set Up Billing">
+    Navigate to **Billing** and add a payment method. GPT-4o requires a paid account.
+  </Step>
+
+  <Step title="Generate API Key">
+    Go to [API Keys](https://platform.openai.com/account/api-keys) and click **Create new secret key**.
+    
+    The key format is: `sk-proj-...`
+  </Step>
+
+  <Step title="Configure Access">
+    Ensure your account has access to GPT-4o (default model) or GPT-5 (if available).
+  </Step>
+</Steps>
+
+**Cost Estimate**: ~$0.50-$2.00 per threat model (varies by complexity)
+
+### NVD API Key
+
+<Steps>
+  <Step title="Request API Key">
+    Visit [NVD API Request Form](https://nvd.nist.gov/developers/request-an-api-key)
+  </Step>
+
+  <Step title="Provide Email">
+    Enter your email address. API keys are free for public use.
+  </Step>
+
+  <Step title="Verify Email">
+    Check your email for the API key (usually arrives within 5-10 minutes).
+  </Step>
+
+  <Step title="Save API Key">
+    Add the key to your `local_config.py` file.
+  </Step>
+</Steps>
+
+**Rate Limits**: 
+- With API key: 50 requests per 30 seconds
+- Without API key: 5 requests per 30 seconds
+
+### AlienVault OTX API Key
+
+<Steps>
+  <Step title="Create OTX Account">
+    Sign up at [AlienVault OTX](https://otx.alienvault.com/)
+  </Step>
+
+  <Step title="Access API Settings">
+    Navigate to [Settings → API](https://otx.alienvault.com/api)
+  </Step>
+
+  <Step title="Copy API Key">
+    Your API key is displayed automatically. Copy it to your configuration.
+  </Step>
+</Steps>
+
+**Rate Limits**: 
+- Free tier: 10,000 requests per hour
+- Sufficient for most AegisShield usage
+
+## Data Dependencies
+
+AegisShield includes pre-loaded MITRE ATT&CK data in the `MITRE_ATTACK_DATA/` directory:
+
+```bash
+MITRE_ATTACK_DATA/
+├── enterprise-attack.json    # Enterprise tactics and techniques
+├── mobile-attack.json         # Mobile-specific threats
+└── ics-attack.json           # Industrial Control Systems threats
+```
+
+<Note>
+**Updating MITRE Data**: The repository includes current MITRE ATT&CK data. For the latest version, download from the [MITRE ATT&CK GitHub](https://github.com/mitre-attack/attack-stix-data) and replace the JSON files.
+
+Recommended update frequency: **Quarterly**
+</Note>
+
+## Running the Application
+
+After installation and configuration:
+
+```bash
+# Activate virtual environment (if using)
+source venv/bin/activate  # Linux/macOS
+# or
+venv\Scripts\activate     # Windows
+
+# Start the application
+streamlit run main.py
+```
+
+The application will:
+1. Load API keys from configuration
+2. Initialize MITRE ATT&CK data
+3. Start the web server on `http://localhost:8501`
+4. Open your default browser automatically
+
+### Custom Port Configuration
+
+```bash
+# Use a different port
+streamlit run main.py --server.port 8502
+
+# Bind to all network interfaces (for remote access)
+streamlit run main.py --server.address 0.0.0.0
+```
+
+### Debug Mode
+
+For troubleshooting:
+
+```bash
+streamlit run main.py --logger.level debug
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion icon="python" title="Python Version Issues">
+    **Error**: "Python 3.12 required" or import errors
+
+    **Solution**:
+    ```bash
+    # Check Python version
+    python --version
+
+    # If using older Python, upgrade or use pyenv
+    pyenv install 3.12.0
+    pyenv local 3.12.0
+
+    # Recreate virtual environment with correct version
+    python3.12 -m venv venv
+    ```
+  </Accordion>
+
+  <Accordion icon="box" title="Dependency Installation Failures">
+    **Error**: "Failed building wheel for X" or compilation errors
+
+    **Solution for xhtml2pdf (common issue)**:
+
+    <CodeGroup>
+    ```bash Ubuntu/Debian
+    sudo apt-get update
+    sudo apt-get install python3-dev libcairo2-dev libpango1.0-dev
+    pip install --upgrade pip setuptools wheel
+    pip install -r requirements.txt
+    ```
+
+    ```bash macOS
+    brew install cairo pango gdk-pixbuf
+    pip install --upgrade pip setuptools wheel
+    pip install -r requirements.txt
+    ```
+
+    ```bash Windows
+    # Install Microsoft C++ Build Tools
+    # Download from: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+    pip install --upgrade pip setuptools wheel
+    pip install -r requirements.txt
+    ```
+    </CodeGroup>
+  </Accordion>
+
+  <Accordion icon="key" title="API Key Validation Errors">
+    **Error**: "Invalid API key" or authentication failures
+
+    **Checklist**:
+    - [ ] API key has no leading/trailing spaces
+    - [ ] OpenAI key starts with `sk-` or `sk-proj-`
+    - [ ] Keys are in quotes in `local_config.py`
+    - [ ] File is named exactly `local_config.py` (not `config.py`)
+    - [ ] OpenAI account has GPT-4o access enabled
+
+    **Test API keys**:
+    ```python
+    # Test OpenAI
+    from openai import OpenAI
+    client = OpenAI(api_key="your-key")
+    print(client.models.list())
+
+    # Test NVD (in Python shell)
+    import nvdlib
+    results = nvdlib.searchCVE(cveId='CVE-2024-1234', key='your-key')
+    ```
+  </Accordion>
+
+  <Accordion icon="file" title="MITRE Data Not Found">
+    **Error**: "No MITRE ATT&CK data found"
+
+    **Solution**:
+    ```bash
+    # Check if directory exists
+    ls MITRE_ATTACK_DATA/
+
+    # Should show:
+    # enterprise-attack.json
+    # mobile-attack.json
+    # ics-attack.json
+
+    # If missing, re-clone the repository or download from:
+    # https://github.com/mitre-attack/attack-stix-data
+    ```
+  </Accordion>
+
+  <Accordion icon="memory" title="Memory Issues">
+    **Error**: "Out of memory" or application crashes during threat generation
+
+    **Solutions**:
+    - Close other applications to free RAM
+    - Use batch processing for multiple threat models
+    - Reduce concurrent API calls in code
+    - Consider upgrading to 8GB+ RAM
+    - For Docker, increase memory limit:
+      ```bash
+      docker run -m 4g -p 8501:8501 aegisshield
+      ```
+  </Accordion>
+
+  <Accordion icon="network-wired" title="Network and Firewall Issues">
+    **Error**: Connection timeouts or API request failures
+
+    **Checklist**:
+    - [ ] Internet connection is active
+    - [ ] Firewall allows outbound HTTPS (443)
+    - [ ] No proxy blocking OpenAI, NVD, or OTX domains
+    - [ ] Corporate VPN not blocking API endpoints
+
+    **Test connectivity**:
+    ```bash
+    # Test OpenAI
+    curl https://api.openai.com/v1/models -H "Authorization: Bearer sk-..."
+
+    # Test NVD
+    curl https://services.nvd.nist.gov/rest/json/cves/2.0
+
+    # Test AlienVault
+    curl https://otx.alienvault.com/api/v1/indicators/domain/example.com
+    ```
+  </Accordion>
+
+  <Accordion icon="docker" title="Docker Issues">
+    **Error**: Docker build fails or container won't start
+
+    **Common solutions**:
+    ```bash
+    # Clear Docker cache and rebuild
+    docker system prune -a
+    docker build --no-cache -t aegisshield .
+
+    # Check container logs
+    docker logs <container-id>
+
+    # Interactive troubleshooting
+    docker run -it aegisshield /bin/bash
+
+    # Port conflicts
+    docker run -p 8502:8501 aegisshield
+    ```
+  </Accordion>
+
+  <Accordion icon="bug" title="Streamlit Won't Start">
+    **Error**: "Address already in use" or Streamlit crashes
+
+    **Solutions**:
+    ```bash
+    # Kill existing Streamlit processes
+    pkill -f streamlit
+
+    # Or on Windows
+    taskkill /F /IM streamlit.exe
+
+    # Use different port
+    streamlit run main.py --server.port 8502
+
+    # Check for port conflicts
+    lsof -i :8501  # Linux/macOS
+    netstat -ano | findstr :8501  # Windows
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Optimization
+
+### API Rate Limit Management
+
+AegisShield includes built-in retry logic with exponential backoff (see `nvd_search.py:23-63`, `alientvault_search.py:25-50`):
+
+```python
+# Automatic retry configuration
+max_retries = 3
+initial_delay = 1.0  # seconds
+# Exponential backoff: 1s → 2s → 4s
+```
+
+### Memory Management
+
+For large threat models:
+
+```python
+# In main.py, adjust session state caching
+# Reduce concurrent processing if needed
+import streamlit as st
+st.set_page_config(layout="wide")  # Already configured
+```
+
+### Caching Strategy
+
+<Warning>
+**Security First**: AegisShield deliberately avoids caching sensitive threat model data to prevent information disclosure (NIST SP 800-53 SC-4).
+</Warning>
+
+## Verification
+
+After installation, verify everything works:
+
+```bash
+# 1. Check Python version
+python --version  # Should be 3.12+
+
+# 2. Import all dependencies
+python -c "import streamlit, openai, OTXv2, nvdlib, markdown2, xhtml2pdf; print('✓ All imports successful')"
+
+# 3. Check configuration file
+python -c "import local_config; print('✓ Config file found')"
+
+# 4. Verify MITRE data
+ls MITRE_ATTACK_DATA/*.json | wc -l  # Should output: 3
+
+# 5. Start application
+streamlit run main.py
+```
+
+Expected output:
+```
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8501
+  Network URL: http://192.168.1.x:8501
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Create your first threat model
+  </Card>
+
+  <Card title="Features" icon="star" href="/features">
+    Explore all capabilities
+  </Card>
+
+  <Card title="Compliance" icon="shield-check" href="/compliance">
+    NIST SP 800-53 implementation details
+  </Card>
+
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Integration and automation guides
+  </Card>
+</CardGroup>
+
+## Support
+
+<Note>
+**Installation Issues?**
+- Check the [FAQ](/guides/troubleshooting)
+- Review [GitHub Issues](https://github.com/mgrofsky/AegisShield/issues)
+- Consult the [troubleshooting guide](#troubleshooting)
+</Note>

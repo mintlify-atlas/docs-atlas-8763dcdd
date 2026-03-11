@@ -1,0 +1,328 @@
+---
+title: "MITRE ATT&CK Integration"
+description: "Real-time integration with MITRE ATT&CK framework for threat tactics and techniques mapping"
+---
+
+# MITRE ATT&CK Integration
+
+AegisShield provides direct integration with the MITRE ATT&CK framework, mapping identified threats to specific attack techniques using local STIX data and AI-powered technique selection.
+
+## Overview
+
+The MITRE ATT&CK integration (`mitre_attack.py`) bridges threat models with real-world attack patterns documented in the MITRE ATT&CK framework.
+
+<CardGroup cols={3}>
+  <Card title="3 Matrices" icon="grid">
+    Enterprise, Mobile, and ICS/SCADA coverage
+  </Card>
+  <Card title="AI Selection" icon="wand-magic-sparkles">
+    GPT-4o selects most relevant techniques
+  </Card>
+  <Card title="Technique Mapping" icon="link">
+    STIX IDs to ATT&CK Technique IDs
+  </Card>
+</CardGroup>
+
+## MITRE ATT&CK Matrices
+
+AegisShield supports three MITRE ATT&CK matrices:
+
+<Tabs>
+  <Tab title="Enterprise ATT&CK">
+    For traditional IT systems, cloud platforms, and web applications.
+    
+    **File:** `MITRE_ATTACK_DATA/enterprise-attack.json`
+    
+    **Application Types:**
+    - Desktop applications
+    - Web applications
+    - SaaS applications
+    - Cloud applications
+    - Network applications
+    - AI/ML Systems
+    - Blockchain systems
+    - Messaging applications
+  </Tab>
+  
+  <Tab title="Mobile ATT&CK">
+    For mobile devices and 5G/wireless systems.
+    
+    **File:** `MITRE_ATTACK_DATA/mobile-attack.json`
+    
+    **Application Types:**
+    - Mobile applications (iOS/Android)
+    - 5G/Wireless systems
+    
+    <Note>Mobile apps automatically receive both Enterprise and Mobile data for comprehensive coverage.</Note>
+  </Tab>
+  
+  <Tab title="ICS ATT&CK">
+    For industrial control systems and critical infrastructure.
+    
+    **File:** `MITRE_ATTACK_DATA/ics-attack.json`
+    
+    **Application Types:**
+    - ICS/SCADA systems
+    - Smart Grid systems
+    - Industrial IoT (IIoT)
+    - Cyber-Physical Systems (CPS)
+    - Embedded systems
+    - IoT applications
+    - Fog computing
+  </Tab>
+</Tabs>
+
+## Core Functions
+
+### fetch_mitre_attack_data()
+
+Loads MITRE ATT&CK STIX data based on application type.
+
+<ParamField path="app_type" type="str" required>
+  Application type determining which matrices to load
+</ParamField>
+
+**Returns:** `dict` - STIX data with attack patterns, tactics, and techniques
+
+```python mitre_attack.py:52-94
+from mitre_attack import fetch_mitre_attack_data
+
+# Automatically selects appropriate matrix
+stix_data = fetch_mitre_attack_data("Web application")
+# Returns enterprise-attack.json
+
+stix_data = fetch_mitre_attack_data("Mobile application")
+# Returns both mobile and enterprise data
+
+stix_data = fetch_mitre_attack_data("ICS or SCADA System")
+# Returns both ICS and enterprise data
+```
+
+### process_mitre_attack_data()
+
+Maps threats to relevant MITRE ATT&CK techniques using AI.
+
+<ParamField path="stix_data" type="dict" required>
+  MITRE ATT&CK STIX data from fetch_mitre_attack_data()
+</ParamField>
+
+<ParamField path="threat_model" type="list" required>
+  Array of threats from threat model
+</ParamField>
+
+<ParamField path="app_details" type="dict" required>
+  Application context (type, industry, authentication, etc.)
+</ParamField>
+
+<ParamField path="openai_api_key" type="str" required>
+  OpenAI API key for AI-powered technique selection
+</ParamField>
+
+**Returns:** `list` - Array of threats with mapped MITRE techniques
+
+```python Processing example
+from mitre_attack import fetch_mitre_attack_data, process_mitre_attack_data
+
+# Load STIX data
+stix_data = fetch_mitre_attack_data(app_type)
+
+# Map threats to techniques
+app_details = {
+    "app_type": "Web application",
+    "industry_sector": "Finance",
+    "authentication": "OAuth2",
+    "internet_facing": "Yes",
+    "sensitive_data": "PII",
+    "app_input": "Banking platform..."
+}
+
+processed = process_mitre_attack_data(
+    stix_data=stix_data,
+    threat_model=threats,
+    app_details=app_details,
+    openai_api_key=api_key
+)
+
+# Each threat now has mitre_techniques array
+for item in processed:
+    threat = item["threat"]
+    techniques = item["mitre_techniques"]
+    print(f"{threat['Threat Type']}: {techniques[0]['technique_id']}")
+```
+
+### map_attack_pattern_to_technique()
+
+Converts STIX attack pattern IDs to ATT&CK Technique IDs (T####).
+
+<ParamField path="stix_data" type="dict" required>
+  STIX data containing attack patterns
+</ParamField>
+
+**Returns:** `dict` - Mapping of attack pattern IDs to technique IDs
+
+```python Technique mapping
+from mitre_attack import map_attack_pattern_to_technique
+
+mapping = map_attack_pattern_to_technique(stix_data)
+
+# Example mapping
+# "attack-pattern--0a3ead4e-6d47-4ccb-854c-a6a4f9d96b22" -> "T1566"
+# "attack-pattern--03d7999c-1f4c-42cc-8373-e7690d318104" -> "T1078"
+
+technique_id = mapping["attack-pattern--0a3ead4e-6d47-4ccb-854c-a6a4f9d96b22"]
+print(technique_id)  # T1566 (Phishing)
+```
+
+## Technique Selection Algorithm
+
+AegisShield uses a two-phase approach:
+
+<Steps>
+  <Step title="Keyword Matching">
+    Extract keywords from threat's "MITRE ATT&CK Keywords" field and match against attack pattern names and descriptions.
+    
+    Maximum of **25 techniques** per threat to keep processing manageable.
+  </Step>
+  
+  <Step title="AI-Powered Selection">
+    Send matched techniques to GPT-4o with application context to select the single most relevant technique.
+    
+    Includes exponential backoff (0-5 seconds) between API calls to avoid rate limiting.
+  </Step>
+</Steps>
+
+```python Technique selection from mitre_attack.py:145-269
+# Phase 1: Keyword matching
+for obj in stix_data["objects"]:
+    if obj["type"] == "attack-pattern":
+        name = obj.get("name", "").lower()
+        description = obj.get("description", "").lower()
+        
+        for keyword in threat["MITRE ATT&CK Keywords"]:
+            if keyword.lower() in name or keyword.lower() in description:
+                relevant_techniques.append(obj)
+                break
+
+relevant_techniques = relevant_techniques[:25]  # Limit to top 25
+
+# Phase 2: AI selection
+prompt = create_mitre_prompt(app_details, threat, relevant_techniques)
+time.sleep(random.randint(0, 5))  # Rate limiting
+top_technique_id = get_relevant_techniques(prompt, openai_api_key)
+```
+
+<Warning>
+Rate limiting is critical. The code sleeps 0-5 seconds between API calls to respect OpenAI's rate limits.
+</Warning>
+
+## Output Structure
+
+Each processed threat includes:
+
+```json MITRE mapping structure
+{
+  "threat": {
+    "Threat Type": "Spoofing",
+    "Scenario": "Attacker could...",
+    "MITRE ATT&CK Keywords": ["credential access", "token theft"]
+  },
+  "mitre_techniques": [
+    {
+      "name": "Steal Application Access Token",
+      "description": "Adversaries may steal tokens to gain...",
+      "id": "attack-pattern--890c9858-598c-401d-a4d5-c67ebcdd703a",
+      "technique_id": "T1528"
+    }
+  ]
+}
+```
+
+## Configuration
+
+Key configuration constants from `mitre_attack.py`:
+
+```python Configuration
+MAX_TECHNIQUES = 25  # Maximum techniques per threat
+RATE_LIMIT_SLEEP_MIN = 0  # Minimum sleep (seconds)
+RATE_LIMIT_SLEEP_MAX = 5  # Maximum sleep (seconds)
+
+# Application type categories
+MOBILE_APP_TYPES = ["Mobile application", "5G/Wireless System"]
+ENTERPRISE_APP_TYPES = ["Desktop application", "Web application", ...]
+ICS_APP_TYPES = ["ICS or SCADA System", "Smart Grid Systems", ...]
+```
+
+## Data Updates
+
+<Note>
+MITRE ATT&CK data is loaded from local JSON files. Update these files quarterly to ensure coverage of new techniques.
+</Note>
+
+<Steps>
+  <Step title="Download Latest Data">
+    Get updated STIX bundles from [MITRE ATT&CK](https://github.com/mitre-attack/attack-stix-data):
+    - `enterprise-attack.json`
+    - `mobile-attack.json`
+    - `ics-attack.json`
+  </Step>
+  
+  <Step title="Replace Files">
+    Replace files in `MITRE_ATTACK_DATA/` directory
+  </Step>
+  
+  <Step title="Verify">
+    Run a test threat model to ensure new data loads correctly
+  </Step>
+</Steps>
+
+## Example Integration
+
+Complete workflow from threat to technique:
+
+```python Complete workflow
+from threat_model import get_threat_model, create_threat_model_prompt
+from mitre_attack import fetch_mitre_attack_data, process_mitre_attack_data
+
+# 1. Generate threats
+threat_prompt = create_threat_model_prompt(...)
+response = get_threat_model(api_key, "gpt-4o", threat_prompt)
+threats = response["threat_model"]
+
+# 2. Load MITRE data
+stix_data = fetch_mitre_attack_data(app_type)
+
+# 3. Map to techniques
+app_details = {...}
+mitre_mapped = process_mitre_attack_data(
+    stix_data, threats, app_details, api_key
+)
+
+# 4. Use mapped techniques
+for item in mitre_mapped:
+    threat = item["threat"]
+    techniques = item["mitre_techniques"]
+    
+    if techniques:
+        tech = techniques[0]
+        print(f"Threat: {threat['Scenario']}")
+        print(f"Technique: {tech['technique_id']} - {tech['name']}")
+        print(f"Learn more: https://attack.mitre.org/techniques/{tech['technique_id']}")
+```
+
+## Visualization
+
+MITRE techniques are displayed with:
+- Technique ID (e.g., T1566)
+- Technique name
+- Full description
+- Link to ATT&CK website
+
+<Tip>
+See [Attack Trees](/features/attack-trees) for visual representation of attack paths using MITRE techniques.
+</Tip>
+
+## Related Resources
+
+- [MITRE ATT&CK Website](https://attack.mitre.org/)
+- [STIX Data Repository](https://github.com/mitre-attack/attack-stix-data)
+- [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/)

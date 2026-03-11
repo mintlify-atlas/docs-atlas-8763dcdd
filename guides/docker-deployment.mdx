@@ -1,0 +1,612 @@
+---
+title: 'Docker Deployment'
+description: 'Deploy AegisShield using Docker for consistent, portable environments'
+---
+
+# Docker Deployment
+
+AegisShield includes a production-ready Dockerfile for containerized deployment. This enables consistent environments across development, testing, and production.
+
+## Quick Start
+
+<CodeGroup>
+```bash Build and Run
+# Clone repository
+git clone https://github.com/mgrofsky/AegisShield.git
+cd AegisShield
+
+# Build Docker image
+docker build -t aegisshield:latest .
+
+# Run container
+docker run -p 8501:8501 \
+  -e OPENAI_API_KEY="your-openai-key" \
+  -e NVD_API_KEY="your-nvd-key" \
+  -e ALIENVAULT_API_KEY="your-alienvault-key" \
+  aegisshield:latest
+```
+
+```bash Using Docker Compose
+# Create docker-compose.yml (see below)
+
+# Start service
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop service
+docker-compose down
+```
+</CodeGroup>
+
+Access the application at **http://localhost:8501**
+
+## Dockerfile Breakdown
+
+Let's examine the AegisShield Dockerfile:
+
+```dockerfile
+# Specify the base image
+FROM python:3.13-slim
+```
+
+**Base Image**: Uses Python 3.13 slim variant for:
+- Minimal attack surface
+- Smaller image size (~150MB vs 1GB for full Python)
+- Faster build and deployment times
+
+---
+
+```dockerfile
+# Install system dependencies for PDF generation (Cairo/Pango for xhtml2pdf)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    python3-dev \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf2.0-dev \
+    libffi-dev \
+    pkg-config \
+    shared-mime-info \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+```
+
+**System Dependencies**: Required for:
+- **Cairo/Pango**: PDF report generation with xhtml2pdf
+- **libffi**: Cryptographic operations
+- **curl**: Health check endpoint testing
+- **build-essential**: Compilation of Python packages with C extensions
+
+<Info>
+The cleanup command `rm -rf /var/lib/apt/lists/*` reduces image size by removing package manager cache.
+</Info>
+
+---
+
+```dockerfile
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the current directory contents into the container at /app
+COPY . /app
+```
+
+**File Structure**: Copies entire application directory including:
+- Python source files
+- MITRE ATT&CK data files
+- Requirements and configuration
+- Static assets (logo, etc.)
+
+---
+
+```dockerfile
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+```
+
+**Python Dependencies**: Installs all required packages:
+- Streamlit (web framework)
+- OpenAI SDK (GPT-4o integration)
+- nvdlib (National Vulnerability Database)
+- OTXv2 (AlienVault threat intelligence)
+- markdown2, xhtml2pdf (report generation)
+
+<Warning>
+The `--no-cache-dir` flag prevents pip from caching packages, reducing final image size.
+</Warning>
+
+---
+
+```dockerfile
+# Make port 8501 available to the world outside this container
+EXPOSE 8501
+```
+
+**Port Exposure**: Streamlit's default port 8501 is exposed for:
+- Web UI access
+- API endpoints (if implemented)
+- Health checks
+
+---
+
+```dockerfile
+# Test if the container is listening on port 8501
+HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+```
+
+**Health Monitoring**: 
+- Docker periodically checks the `/_stcore/health` endpoint
+- Marks container as unhealthy if checks fail
+- Enables orchestration tools (Kubernetes, ECS) to restart failed containers
+
+---
+
+```dockerfile
+# Configure the container to run as an executable
+ENTRYPOINT ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0"]
+```
+
+**Application Startup**:
+- `streamlit run main.py`: Launches the main application
+- `--server.port=8501`: Binds to port 8501
+- `--server.address=0.0.0.0`: Listens on all network interfaces (required for container networking)
+
+## Environment Configuration
+
+### Using Environment Variables
+
+AegisShield can be configured via environment variables for Docker deployments:
+
+```bash
+docker run -p 8501:8501 \
+  -e OPENAI_API_KEY="sk-proj-xxx" \
+  -e NVD_API_KEY="nvd-xxx" \
+  -e ALIENVAULT_API_KEY="alienvault-xxx" \
+  aegisshield:latest
+```
+
+### Using Secrets File
+
+For production, use Docker secrets or mounted configuration:
+
+```bash
+# Create secrets file
+cat > local_config.py <<EOF
+default_nvd_api_key="NVD-API-KEY"
+default_openai_api_key="OPENAI-API-KEY"
+default_alienvault_api_key="ALIENVAULT-API-KEY"
+EOF
+
+# Mount as volume
+docker run -p 8501:8501 \
+  -v $(pwd)/local_config.py:/app/local_config.py:ro \
+  aegisshield:latest
+```
+
+<Warning>
+**Security Best Practice**: Never commit `local_config.py` with real API keys to version control. Use `.gitignore` to exclude it.
+</Warning>
+
+### Using .env File
+
+Create a `.env` file for docker-compose:
+
+```bash
+# .env
+OPENAI_API_KEY=sk-proj-xxx
+NVD_API_KEY=nvd-xxx
+ALIENVAULT_API_KEY=alienvault-xxx
+```
+
+## Docker Compose Configuration
+
+Create `docker-compose.yml` for easier management:
+
+```yaml
+version: '3.8'
+
+services:
+  aegisshield:
+    build: .
+    image: aegisshield:latest
+    container_name: aegisshield
+    ports:
+      - "8501:8501"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NVD_API_KEY=${NVD_API_KEY}
+      - ALIENVAULT_API_KEY=${ALIENVAULT_API_KEY}
+    volumes:
+      # Mount MITRE data directory (optional, if updating frequently)
+      - ./MITRE_ATTACK_DATA:/app/MITRE_ATTACK_DATA:ro
+      # Mount logs directory for persistence
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+
+### Usage:
+
+```bash
+# Start service
+docker-compose up -d
+
+# View logs
+docker-compose logs -f aegisshield
+
+# Restart service
+docker-compose restart
+
+# Stop and remove
+docker-compose down
+```
+
+## Production Deployment
+
+### Kubernetes Deployment
+
+<CodeGroup>
+```yaml Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aegisshield
+  labels:
+    app: aegisshield
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aegisshield
+  template:
+    metadata:
+      labels:
+        app: aegisshield
+    spec:
+      containers:
+      - name: aegisshield
+        image: aegisshield:latest
+        ports:
+        - containerPort: 8501
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aegisshield-secrets
+              key: openai-api-key
+        - name: NVD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aegisshield-secrets
+              key: nvd-api-key
+        - name: ALIENVAULT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aegisshield-secrets
+              key: alienvault-api-key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 5
+          periodSeconds: 5
+```
+
+```yaml Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: aegisshield
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8501
+    protocol: TCP
+  selector:
+    app: aegisshield
+```
+
+```yaml Secrets
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aegisshield-secrets
+type: Opaque
+stringData:
+  openai-api-key: "sk-proj-xxx"
+  nvd-api-key: "nvd-xxx"
+  alienvault-api-key: "alienvault-xxx"
+```
+</CodeGroup>
+
+Apply configuration:
+
+```bash
+# Create secrets
+kubectl apply -f secrets.yaml
+
+# Deploy application
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+
+# Check status
+kubectl get pods
+kubectl logs -f deployment/aegisshield
+```
+
+### AWS ECS Deployment
+
+```json
+{
+  "family": "aegisshield",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "name": "aegisshield",
+      "image": "<account-id>.dkr.ecr.<region>.amazonaws.com/aegisshield:latest",
+      "portMappings": [
+        {
+          "containerPort": 8501,
+          "protocol": "tcp"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:region:account:secret:aegisshield/openai"
+        },
+        {
+          "name": "NVD_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:region:account:secret:aegisshield/nvd"
+        },
+        {
+          "name": "ALIENVAULT_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:region:account:secret:aegisshield/alienvault"
+        }
+      ],
+      "memory": 2048,
+      "cpu": 1024,
+      "essential": true,
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8501/_stcore/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3
+      }
+    }
+  ],
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048"
+}
+```
+
+## Customization Options
+
+### Custom Port
+
+```dockerfile
+# Change port in Dockerfile
+EXPOSE 9000
+ENTRYPOINT ["streamlit", "run", "main.py", "--server.port=9000", "--server.address=0.0.0.0"]
+```
+
+```bash
+# Run with custom port
+docker run -p 9000:9000 aegisshield:latest
+```
+
+### Additional Streamlit Configuration
+
+Create `.streamlit/config.toml`:
+
+```toml
+[server]
+port = 8501
+address = "0.0.0.0"
+maxUploadSize = 200
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#1f77b4"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#262730"
+```
+
+Mount in Dockerfile:
+
+```dockerfile
+COPY .streamlit /app/.streamlit
+```
+
+### Persistent Data
+
+Mount volumes for persistent storage:
+
+```bash
+docker run -p 8501:8501 \
+  -v $(pwd)/logs:/app/logs \
+  -v $(pwd)/outputs:/app/outputs \
+  aegisshield:latest
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Container Fails to Start">
+    **Check logs**:
+    ```bash
+    docker logs aegisshield
+    ```
+    
+    **Common causes**:
+    - Missing API keys in environment variables
+    - Port 8501 already in use
+    - Insufficient memory allocation
+    
+    **Solution**:
+    ```bash
+    # Check port usage
+    netstat -tulpn | grep 8501
+    
+    # Use different port
+    docker run -p 8502:8501 aegisshield:latest
+    ```
+  </Accordion>
+
+  <Accordion title="Health Check Failing">
+    **Symptom**: Container marked as unhealthy
+    
+    **Check health**:
+    ```bash
+    docker inspect --format='{{json .State.Health}}' aegisshield | jq
+    ```
+    
+    **Solution**:
+    - Increase `start_period` in health check (Streamlit needs ~30s to start)
+    - Verify port 8501 is accessible inside container:
+    ```bash
+    docker exec -it aegisshield curl http://localhost:8501/_stcore/health
+    ```
+  </Accordion>
+
+  <Accordion title="PDF Generation Fails">
+    **Error**: Missing Cairo/Pango libraries
+    
+    **Solution**: Ensure system dependencies are installed (they should be in the Dockerfile)
+    
+    **Verify**:
+    ```bash
+    docker exec -it aegisshield dpkg -l | grep cairo
+    docker exec -it aegisshield dpkg -l | grep pango
+    ```
+  </Accordion>
+
+  <Accordion title="Large Image Size">
+    **Problem**: Docker image is too large
+    
+    **Solutions**:
+    1. Use multi-stage builds to reduce size
+    2. Remove unnecessary files with `.dockerignore`:
+    ```
+    .git
+    .gitignore
+    __pycache__
+    *.pyc
+    tests/
+    docs/
+    .env
+    local_config.py
+    ```
+    
+    3. Check image size:
+    ```bash
+    docker images aegisshield
+    ```
+  </Accordion>
+
+  <Accordion title="API Keys Not Working">
+    **Problem**: Application can't access API keys
+    
+    **Debug**:
+    ```bash
+    # Check environment variables
+    docker exec aegisshield env | grep API_KEY
+    
+    # Check config file
+    docker exec aegisshield cat /app/local_config.py
+    ```
+    
+    **Solution**: Ensure environment variables or mounted config file is correct
+  </Accordion>
+</AccordionGroup>
+
+## Security Best Practices
+
+<Warning>
+**Production Security Checklist**:
+- ✅ Never include API keys in the Docker image
+- ✅ Use Docker secrets or environment variables
+- ✅ Run container as non-root user (add USER directive)
+- ✅ Use read-only file system where possible
+- ✅ Scan images for vulnerabilities regularly
+- ✅ Keep base image updated (Python 3.13-slim)
+- ✅ Enable TLS/HTTPS in production
+- ✅ Use private container registry
+- ✅ Implement network policies (firewall rules)
+- ✅ Monitor container logs and metrics
+</Warning>
+
+### Non-Root User
+
+Add to Dockerfile for improved security:
+
+```dockerfile
+# Create non-root user
+RUN useradd -m -u 1000 aegis && \
+    chown -R aegis:aegis /app
+
+USER aegis
+
+ENTRYPOINT ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0"]
+```
+
+## Performance Tuning
+
+### Resource Limits
+
+```bash
+# Set memory and CPU limits
+docker run -p 8501:8501 \
+  --memory="2g" \
+  --cpus="1.5" \
+  aegisshield:latest
+```
+
+### Monitoring
+
+```bash
+# Real-time resource usage
+docker stats aegisshield
+
+# Export metrics (for Prometheus, etc.)
+docker stats --no-stream --format "{{json .}}" aegisshield
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Configure API keys and settings
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Resolve common issues
+  </Card>
+</CardGroup>

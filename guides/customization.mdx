@@ -1,0 +1,685 @@
+---
+title: Customizing AegisShield
+description: Learn how to customize prompts, add new technologies, modify risk scoring, and extend AegisShield for your specific needs
+---
+
+# Customizing AegisShield
+
+AegisShield is designed to be extensible. This guide shows you how to customize the tool to fit your organization's specific requirements.
+
+## Customizing Threat Model Prompts
+
+The quality of threat models depends heavily on the prompts sent to the AI. You can customize these prompts to match your organization's threat modeling methodology.
+
+### Threat Model Prompt Customization
+
+The main threat model prompt is in `threat_model.py:116-203`. Here's the structure:
+
+```python
+def create_threat_model_prompt(
+    app_type,
+    authentication,
+    internet_facing,
+    industry_sector,
+    sensitive_data,
+    app_input,
+    nvd_vulnerabilities,
+    otx_data,
+    technical_ability,
+):
+    prompt = f"""
+Act as a cybersecurity expert in the {industry_sector} sector with 
+more than 20 years of experience using the STRIDE threat modeling 
+methodology...
+"""
+```
+
+### Customization Options
+
+<Steps>
+  <Step title="Adjust Expertise Level">
+    **Default:** "20 years of experience"
+    
+    **Customize:**
+    ```python
+    # For more conservative threat models
+    prompt = f"""
+    Act as a senior cybersecurity architect with 25+ years of experience 
+    specializing in {industry_sector} sector threat modeling and penetration 
+    testing, certified CISSP and OSCP...
+    """
+    ```
+  </Step>
+
+  <Step title="Modify Threat Count">
+    **Default:** "3 credible threats per category" (line 132)
+    
+    **Customize:**
+    ```python
+    # For more comprehensive analysis
+    "list a mandatory multiple (5) credible threats per category"
+    
+    # For faster, focused analysis
+    "list the top 2 most critical threats per category"
+    ```
+    
+    <Note>
+      More threats increase generation time and token usage. Balance thoroughness with performance.
+    </Note>
+  </Step>
+
+  <Step title="Add Industry-Specific Guidance">
+    Insert custom requirements after line 145:
+    
+    ```python
+    # For healthcare applications
+    prompt += f"""
+    
+    ADDITIONAL REQUIREMENTS FOR HEALTHCARE:
+    - Consider HIPAA Privacy Rule and Security Rule requirements
+    - Assess risks to PHI (Protected Health Information)
+    - Evaluate BAA (Business Associate Agreement) implications
+    - Consider patient safety implications of security incidents
+    """
+    ```
+  </Step>
+
+  <Step title="Customize Output Format">
+    **Default JSON structure** (line 138-142):
+    ```json
+    {
+      "Threat Type": "Spoofing",
+      "Scenario": "...",
+      "Potential Impact": "...",
+      "MITRE ATT&CK Keywords": [...]
+    }
+    ```
+    
+    **Add custom fields:**
+    ```python
+    # Add likelihood and business impact
+    """Use JSON with keys: "Threat Type", "Scenario", 
+    "Potential Impact", "Likelihood" (Low/Medium/High), 
+    "Business Impact" (Financial/Reputational/Operational), 
+    "MITRE ATT&CK Keywords"""
+    ```
+    
+    <Warning>
+      If you modify the JSON structure, you must also update the parsing logic in `json_to_markdown()` and the display code in `step3_threat_model.py`.
+    </Warning>
+  </Step>
+
+  <Step title="Adjust Technical Level">
+    **Default:** Uses `technical_ability` parameter (line 128-130)
+    
+    **Force a specific level:**
+    ```python
+    # Always use expert-level explanations
+    """The audience is security professionals with deep technical 
+    expertise. Use precise technical terminology and assume knowledge 
+    of common attack vectors, cryptographic primitives, and network 
+    protocols."""
+    
+    # Always use beginner-level explanations
+    """The audience is non-technical stakeholders. Avoid jargon, 
+    explain concepts clearly, and relate threats to business impact."""
+    ```
+  </Step>
+</Steps>
+
+## Adding New Technologies
+
+To add technologies not currently in AegisShield's database, modify `step2_technology.py`.
+
+### Finding CPE Identifiers
+
+<Steps>
+  <Step title="Search the NVD">
+    Visit the [NVD CPE Search](https://nvd.nist.gov/products/cpe/search)
+    
+    Search for your technology (e.g., "nginx", "mongodb", "kubernetes")
+  </Step>
+
+  <Step title="Get the CPE String">
+    From search results, copy the CPE 2.3 formatted string:
+    
+    **Example for NGINX:**
+    ```
+    cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*
+    ```
+    
+    **Truncate to base CPE** (remove wildcards at end):
+    ```
+    cpe:2.3:a:f5:nginx:
+    ```
+  </Step>
+
+  <Step title="Add to Technology Dictionary">
+    Edit `step2_technology.py:117-168`, add your technology:
+    
+    ```python
+    TECHNOLOGY_TYPES: dict[str, dict[str, str]] = {
+        "Databases": {
+            "MySQL": "cpe:2.3:a:mysql:mysql:",
+            "MongoDB": "cpe:2.3:a:mongodb:mongodb:",  # New!
+            # ... existing entries
+        },
+        "Web Servers": {  # New category!
+            "NGINX": "cpe:2.3:a:f5:nginx:",
+            "Apache": "cpe:2.3:a:apache:http_server:",
+        },
+        # ... existing categories
+    }
+    ```
+  </Step>
+
+  <Step title="Add Category to UI">
+    The expander is auto-generated from the dictionary (line 323-329), so your new category appears automatically.
+  </Step>
+</Steps>
+
+### Example: Adding Container Technologies
+
+```python
+# Add to TECHNOLOGY_TYPES dictionary
+"Container Platforms": {
+    "Docker": "cpe:2.3:a:docker:docker:",
+    "Kubernetes": "cpe:2.3:a:kubernetes:kubernetes:",
+    "Podman": "cpe:2.3:a:podman_project:podman:",
+    "containerd": "cpe:2.3:a:containerd:containerd:",
+},
+```
+
+Restart the application, and you'll see a new "Container Platforms" expander in Step 2.
+
+<Tip>
+  After adding technologies, test the NVD search by selecting the technology in Step 2 with a known vulnerable version, then checking that CVEs appear in Step 3.
+</Tip>
+
+## Modifying Risk Scoring
+
+The DREAD risk assessment can be customized to match your organization's risk appetite.
+
+### Adjusting DREAD Scales
+
+Edit `dread.py:64-127` to modify the prompt:
+
+<Steps>
+  <Step title="Change Scoring Scale">
+    **Default:** 1-10 scale with Low (1-3), Medium (4-6), High (7-10)
+    
+    **Customize to 0-5 scale:**
+    ```python
+    prompt = f"""
+    Assign a value between 0 and 5 for each factor:
+    - 0-1: Low
+    - 2-3: Medium
+    - 4-5: High
+    """
+    ```
+    
+    Update the calculation in `dread_json_to_markdown()` (line 45-51):
+    ```python
+    risk_score = (
+        damage_potential
+        + reproducibility
+        + exploitability
+        + affected_users
+        + discoverability
+    ) / 5  # Changed divisor
+    ```
+  </Step>
+
+  <Step title="Add Custom Risk Factors">
+    **Add "Business Impact" factor:**
+    ```python
+    prompt = f"""
+    Use JSON with keys:
+    - "Threat Type"
+    - "Scenario" 
+    - "Damage Potential"
+    - "Reproducibility"
+    - "Exploitability"
+    - "Affected Users"
+    - "Discoverability"
+    - "Business Impact": Rate the potential business/financial impact
+    """
+    ```
+    
+    Update `dread_json_to_markdown()` to include the new factor:
+    ```python
+    business_impact = threat.get("Business Impact", 0)
+    risk_score = (
+        damage_potential + reproducibility + exploitability + 
+        affected_users + discoverability + business_impact
+    ) / 6  # Now 6 factors
+    ```
+  </Step>
+
+  <Step title="Weight Factors Differently">
+    **Apply custom weights** based on your priorities:
+    ```python
+    # Emphasize Damage and Exploitability, de-emphasize Discoverability
+    risk_score = (
+        (damage_potential * 2.0) +      # 2x weight
+        reproducibility +
+        (exploitability * 1.5) +        # 1.5x weight  
+        affected_users +
+        (discoverability * 0.5)         # 0.5x weight
+    ) / 6.0  # Sum of weights
+    ```
+  </Step>
+
+  <Step title="Add Risk Thresholds">
+    After calculating risk_score, add thresholds:
+    ```python
+    # Determine risk level
+    if risk_score >= 8.0:
+        risk_level = "🔴 Critical"
+    elif risk_score >= 6.0:
+        risk_level = "🟠 High"
+    elif risk_score >= 4.0:
+        risk_level = "🟡 Medium"
+    else:
+        risk_level = "🟢 Low"
+    
+    # Add to markdown output
+    markdown_output += f"| {threat.get('Threat Type')} | ... | {risk_score:.2f} | {risk_level} |\n"
+    ```
+  </Step>
+</Steps>
+
+## Customizing Attack Tree Generation
+
+Attack trees are generated in `attack_tree.py`. Customize the prompt to match your preferred visualization style.
+
+### Attack Tree Prompt Customization
+
+Edit `attack_tree.py` (exact line numbers may vary):
+
+```python
+def create_attack_tree_prompt(
+    app_type,
+    authentication,
+    internet_facing,
+    sensitive_data,
+    mitre_data,
+    nvd_vulnerabilities,
+    otx_data,
+    app_input
+):
+    # Customize the tree structure
+    prompt = f"""
+    Create a Mermaid attack tree diagram focusing on:
+    1. Most likely attack paths (not comprehensive)
+    2. Attacks exploiting known CVEs from: {nvd_vulnerabilities}
+    3. MITRE techniques from: {mitre_data}
+    
+    Use this Mermaid syntax:
+    graph TD
+        Root["Attacker Goal"]
+        Root --> Path1["Attack Vector 1"]
+        Root --> Path2["Attack Vector 2"]
+        Path1 --> Technique1["Specific Technique"]
+    
+    Include severity indicators:
+    - 🔴 for Critical severity
+    - 🟠 for High severity
+    - 🟡 for Medium severity
+    """
+```
+
+<Tip>
+  Test your customized attack tree by pasting the Mermaid code into the [Mermaid Live Editor](https://mermaid.live/) to ensure it renders correctly.
+</Tip>
+
+## Extending with New Assessment Types
+
+You can add entirely new assessment types beyond STRIDE and DREAD.
+
+### Example: Adding PASTA Threat Modeling
+
+<Steps>
+  <Step title="Create Assessment Module">
+    Create `pasta.py`:
+    ```python
+    def create_pasta_prompt(app_details, threat_model):
+        """Create prompt for PASTA (Process for Attack Simulation 
+        and Threat Analysis) assessment."""
+        prompt = f"""
+        Perform a PASTA threat analysis covering:
+        1. Business Objectives
+        2. Technical Scope
+        3. Application Decomposition  
+        4. Threat Analysis
+        5. Vulnerability Analysis
+        6. Attack Modeling
+        7. Risk and Impact Analysis
+        
+        Application: {app_details}
+        Existing threats: {threat_model}
+        """
+        return prompt
+    
+    def get_pasta_assessment(api_key, model_name, prompt):
+        """Call OpenAI API to generate PASTA assessment."""
+        # Similar to get_dread_assessment() implementation
+        pass
+    ```
+  </Step>
+
+  <Step title="Create UI Tab">
+    Create `tabs/step8_pasta.py`:
+    ```python
+    import streamlit as st
+    from pasta import create_pasta_prompt, get_pasta_assessment
+    
+    def render(model_provider, selected_model, openai_api_key):
+        st.markdown("## PASTA Threat Analysis")
+        
+        if st.button("Generate PASTA Assessment"):
+            prompt = create_pasta_prompt(
+                st.session_state['app_details'],
+                st.session_state['threat_model']
+            )
+            assessment = get_pasta_assessment(
+                openai_api_key, selected_model, prompt
+            )
+            st.markdown(assessment)
+    ```
+  </Step>
+
+  <Step title="Register Tab in Main">
+    Edit `main.py:123-131`:
+    ```python
+    from tabs import (
+        step1_description,
+        # ... existing imports
+        step8_pasta,  # New!
+    )
+    
+    # In main():
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+        "Step 1: Description",
+        # ... existing tabs
+        "Step 8: PASTA Analysis"  # New!
+    ])
+    
+    # Add render call
+    render_tab(tab8, step8_pasta.render, 'step8', **model_params)
+    ```
+  </Step>
+</Steps>
+
+## Adding New Data Sources
+
+AegisShield currently integrates with NVD and AlienVault OTX. You can add additional threat intelligence sources.
+
+### Example: Adding MISP Integration
+
+<Steps>
+  <Step title="Create Integration Module">
+    Create `misp_search.py`:
+    ```python
+    import requests
+    
+    def search_misp(misp_url, misp_key, industry_sector):
+        """Search MISP for threat events related to industry."""
+        headers = {
+            "Authorization": misp_key,
+            "Accept": "application/json"
+        }
+        
+        payload = {
+            "tags": [industry_sector],
+            "limit": 10
+        }
+        
+        response = requests.post(
+            f"{misp_url}/events/restSearch",
+            headers=headers,
+            json=payload
+        )
+        
+        return response.json()
+    ```
+  </Step>
+
+  <Step title="Add API Key Handler">
+    Edit `api_key_handler.py` to add MISP configuration:
+    ```python
+    def render_api_key_inputs():
+        # ... existing code
+        
+        # Add MISP configuration
+        misp_url = st.text_input(
+            "MISP URL",
+            value=st.session_state.get('misp_url', ''),
+            type='default'
+        )
+        st.session_state['misp_url'] = misp_url
+        
+        misp_key = st.text_input(
+            "MISP API Key", 
+            value=st.session_state.get('misp_key', ''),
+            type='password'
+        )
+        st.session_state['misp_key'] = misp_key
+    ```
+  </Step>
+
+  <Step title="Integrate into Threat Generation">
+    Edit `step3_threat_model.py` after line 157:
+    ```python
+    # After AlienVault search
+    misp_url = st.session_state.get('misp_url')
+    misp_key = st.session_state.get('misp_key')
+    misp_events = ""
+    
+    if misp_url and misp_key:
+        with st.spinner("Searching MISP for threat intelligence..."):
+            try:
+                from misp_search import search_misp
+                misp_events = search_misp(
+                    misp_url, 
+                    misp_key, 
+                    st.session_state['industry_sector']
+                )
+            except Exception as e:
+                handle_exception(e, "Error fetching MISP data.")
+    
+    # Add to threat model prompt
+    threat_model_prompt = create_threat_model_prompt(
+        # ... existing parameters
+        misp_events=misp_events  # New!
+    )
+    ```
+  </Step>
+
+  <Step title="Update Prompt">
+    Edit `threat_model.py:create_threat_model_prompt()` to include MISP data:
+    ```python
+    def create_threat_model_prompt(
+        # ... existing parameters
+        misp_events,  # New parameter
+    ):
+        prompt = f"""
+        # ... existing prompt content
+        
+        MISP THREAT EVENTS FOR THE INDUSTRY SECTOR:
+        {misp_events}
+        """
+        return prompt
+    ```
+  </Step>
+</Steps>
+
+## Customizing the UI
+
+Streamlit provides extensive customization options for the interface.
+
+### Custom Styling
+
+Create `.streamlit/config.toml` in your project root:
+
+```toml
+[theme]
+primaryColor = "#1f77b4"        # Primary accent color
+backgroundColor = "#ffffff"     # Background color
+secondaryBackgroundColor = "#f0f2f6"  # Secondary background
+textColor = "#262730"           # Text color
+font = "sans serif"             # Font family
+
+[server]
+headless = true
+port = 8501
+enableCORS = false
+```
+
+### Custom CSS
+
+Add to `main.py` after line 117:
+
+```python
+# Custom CSS
+st.markdown("""
+<style>
+    /* Custom threat severity colors */
+    .threat-critical { background-color: #ff4444; padding: 10px; }
+    .threat-high { background-color: #ff9944; padding: 10px; }
+    .threat-medium { background-color: #ffee44; padding: 10px; }
+    
+    /* Larger expanders */
+    .streamlit-expanderHeader {
+        font-size: 1.2em;
+        font-weight: bold;
+    }
+    
+    /* Custom button styling */
+    .stButton>button {
+        background-color: #1f77b4;
+        color: white;
+        border-radius: 5px;
+    }
+</style>
+""", unsafe_allow_html=True)
+```
+
+## Testing Customizations
+
+After making customizations:
+
+<Steps>
+  <Step title="Test Locally">
+    ```bash
+    streamlit run main.py
+    ```
+    
+    Navigate through all steps to ensure changes work correctly.
+  </Step>
+
+  <Step title="Validate API Responses">
+    Check that modified prompts still produce valid JSON:
+    ```python
+    # Add temporary logging
+    import logging
+    logger.info(f"Prompt: {prompt}")
+    logger.info(f"Response: {response}")
+    ```
+  </Step>
+
+  <Step title="Test Error Handling">
+    Test with invalid inputs:
+    - Empty descriptions
+    - Invalid version formats
+    - Missing API keys
+    - Invalid CPE identifiers
+  </Step>
+
+  <Step title="Performance Testing">
+    For large prompts or many threats:
+    ```python
+    import time
+    start = time.time()
+    # Your code
+    elapsed = time.time() - start
+    logger.info(f"Operation took {elapsed:.2f} seconds")
+    ```
+  </Step>
+</Steps>
+
+## Best Practices for Customization
+
+<Warning>
+  **Always test on a copy:** Create a branch or copy of the code before making significant changes.
+</Warning>
+
+<Tip>
+  **Version your prompts:** When modifying prompts, keep the old version commented out for easy rollback:
+  ```python
+  # Original prompt (v1.0)
+  # prompt = f"""Act as a cyber security expert..."""
+  
+  # Updated prompt (v1.1 - added industry focus)
+  prompt = f"""Act as a cyber security expert specializing in {industry}..."""
+  ```
+</Tip>
+
+<Note>
+  **Document your changes:** Add comments explaining why customizations were made and what they achieve. Future maintainers (including yourself) will appreciate this.
+</Note>
+
+<Tip>
+  **Contribute back:** If your customizations could benefit others, consider contributing them back to the AegisShield project via pull request.
+</Tip>
+
+## Example: Complete Customization for Healthcare
+
+Here's a complete example customizing AegisShield for HIPAA-compliant healthcare applications:
+
+```python
+# custom_healthcare.py
+
+def create_healthcare_threat_model_prompt(app_details):
+    """Specialized prompt for healthcare threat modeling."""
+    prompt = f"""
+    Act as a healthcare cybersecurity expert specializing in HIPAA 
+    compliance and medical device security, with certifications in 
+    HCISPP and experience with FDA premarket cybersecurity guidance.
+    
+    Analyze the following healthcare application for threats:
+    {app_details}
+    
+    Generate threats across STRIDE categories with special focus on:
+    1. PHI (Protected Health Information) confidentiality
+    2. Patient safety implications
+    3. HIPAA Privacy Rule and Security Rule compliance
+    4. Medical device interoperability security
+    5. Business Associate Agreement (BAA) requirements
+    
+    For each threat, assess:
+    - Impact on patient safety (None/Low/Medium/High/Critical)
+    - HIPAA violation potential (Yes/No/Possible)
+    - Required safeguards (Administrative/Physical/Technical)
+    
+    Prioritize threats that could:
+    - Lead to patient harm
+    - Result in HIPAA violations
+    - Compromise PHI
+    - Disrupt clinical operations
+    """
+    return prompt
+
+# Add healthcare-specific DREAD scoring
+def healthcare_risk_score(threat, dread_scores):
+    """Calculate risk score with patient safety weighting."""
+    patient_safety_score = threat.get('Patient Safety Impact', 0)
+    hipaa_multiplier = 1.5 if threat.get('HIPAA Violation', False) else 1.0
+    
+    base_score = sum(dread_scores.values()) / len(dread_scores)
+    adjusted_score = (base_score + patient_safety_score) / 2 * hipaa_multiplier
+    
+    return min(adjusted_score, 10.0)  # Cap at 10
+```
+
+This customization ensures healthcare-specific considerations are central to the threat model.

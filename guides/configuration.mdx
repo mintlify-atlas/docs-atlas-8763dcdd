@@ -1,0 +1,566 @@
+---
+title: 'Configuration'
+description: 'Configure AegisShield with API keys, environment variables, and Streamlit settings'
+---
+
+# Configuration
+
+AegisShield requires proper configuration of API keys and application settings for full functionality. This guide covers all configuration options for local development, Docker, and production deployments.
+
+## Quick Setup
+
+<Steps>
+  <Step title="Create Configuration File">
+    Create `local_config.py` in the project root:
+    ```python
+    default_nvd_api_key="YOUR_NVD_API_KEY"
+    default_openai_api_key="YOUR_OPENAI_API_KEY"
+    default_alienvault_api_key="YOUR_ALIENVAULT_API_KEY"
+    ```
+  </Step>
+
+  <Step title="Obtain API Keys">
+    - **OpenAI**: [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+    - **NVD**: [nvd.nist.gov/developers/request-an-api-key](https://nvd.nist.gov/developers/request-an-api-key)
+    - **AlienVault OTX**: [otx.alienvault.com/settings](https://otx.alienvault.com/settings)
+  </Step>
+
+  <Step title="Verify Configuration">
+    ```bash
+    # Test that configuration loads
+    python -c "import local_config; print('Config loaded successfully')"
+    ```
+  </Step>
+
+  <Step title="Run Application">
+    ```bash
+    streamlit run main.py
+    ```
+  </Step>
+</Steps>
+
+## API Keys
+
+### OpenAI API Key
+
+**Purpose**: Powers AI-driven threat model generation using GPT-4o
+
+**Required for**:
+- Threat identification and STRIDE categorization
+- MITRE ATT&CK technique mapping
+- Security mitigation recommendations
+- Test case generation
+- Attack tree creation
+
+**How to obtain**:
+1. Create account at [platform.openai.com](https://platform.openai.com)
+2. Navigate to API Keys section
+3. Click "Create new secret key"
+4. Copy and save the key (shown only once)
+
+**Configuration**:
+```python
+# local_config.py
+default_openai_api_key="sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+**Cost considerations**:
+- GPT-4o pricing: ~$0.01-0.03 per threat model
+- Batch generation (30 models): ~$0.30-0.90
+- Set usage limits in OpenAI dashboard
+
+<Warning>
+GPT-4o access required. GPT-3.5 may produce lower-quality threat models. Verify your OpenAI account has GPT-4o enabled.
+</Warning>
+
+### NVD API Key
+
+**Purpose**: Fetches technology-specific vulnerability data from National Vulnerability Database
+
+**Required for**:
+- CVE vulnerability lookup
+- Version-specific security issues
+- Technology stack risk assessment
+- Compliance vulnerability reporting
+
+**How to obtain**:
+1. Visit [nvd.nist.gov/developers/request-an-api-key](https://nvd.nist.gov/developers/request-an-api-key)
+2. Fill out request form with email
+3. Receive API key via email (typically within 24 hours)
+4. No cost for standard rate limits
+
+**Configuration**:
+```python
+# local_config.py
+default_nvd_api_key="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+```
+
+**Rate limits**:
+- **Without API key**: 5 requests per 30 seconds
+- **With API key**: 50 requests per 30 seconds
+- Automatic retry with exponential backoff implemented
+
+<Info>
+NVD API key is optional but **highly recommended**. Without it, vulnerability searches will be significantly slower and may time out.
+</Info>
+
+### AlienVault OTX API Key
+
+**Purpose**: Provides industry-specific threat intelligence from open threat exchange
+
+**Required for**:
+- Industry threat context (healthcare, finance, etc.)
+- Current attack campaigns
+- Emerging threat patterns
+- Threat actor intelligence
+
+**How to obtain**:
+1. Create free account at [otx.alienvault.com](https://otx.alienvault.com)
+2. Navigate to Settings → API Integration
+3. Copy your OTX Key
+
+**Configuration**:
+```python
+# local_config.py
+default_alienvault_api_key="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+**Rate limits**:
+- Free tier: Generous limits for typical use
+- Automatic retry logic implemented
+
+<Info>
+AlienVault OTX is optional but adds valuable industry-specific threat context to generated models.
+</Info>
+
+## Configuration Methods
+
+### Method 1: Local Configuration File (Recommended for Development)
+
+Create `local_config.py` in project root:
+
+```python
+# local_config.py
+default_nvd_api_key="your-nvd-api-key"
+default_openai_api_key="your-openai-api-key"
+default_alienvault_api_key="your-alienvault-api-key"
+```
+
+**Advantages**:
+- Simple for local development
+- Easy to edit and test
+- Works with `main.py` and `main-batch.py`
+
+**Security**:
+```bash
+# Add to .gitignore to prevent accidental commits
+echo "local_config.py" >> .gitignore
+```
+
+### Method 2: Streamlit Secrets (Recommended for Production)
+
+Create `.streamlit/secrets.toml`:
+
+```toml
+[default]
+nvd_api_key = "your-nvd-api-key"
+openai_api_key = "your-openai-api-key"
+alienvault_api_key = "your-alienvault-api-key"
+```
+
+**Usage in code**:
+```python
+import streamlit as st
+
+# Access secrets
+nvd_key = st.secrets["default"]["nvd_api_key"]
+openai_key = st.secrets["default"]["openai_api_key"]
+alienvault_key = st.secrets["default"]["alienvault_api_key"]
+```
+
+**Advantages**:
+- Streamlit Cloud integration
+- Secure secret management
+- Separate from code
+
+**Security**:
+```bash
+# Add to .gitignore
+echo ".streamlit/secrets.toml" >> .gitignore
+```
+
+### Method 3: Environment Variables (Recommended for Docker)
+
+```bash
+# Set environment variables
+export OPENAI_API_KEY="your-openai-api-key"
+export NVD_API_KEY="your-nvd-api-key"
+export ALIENVAULT_API_KEY="your-alienvault-api-key"
+
+# Run application
+streamlit run main.py
+```
+
+**Docker usage**:
+```bash
+docker run -p 8501:8501 \
+  -e OPENAI_API_KEY="your-key" \
+  -e NVD_API_KEY="your-key" \
+  -e ALIENVAULT_API_KEY="your-key" \
+  aegisshield:latest
+```
+
+**Advantages**:
+- Cloud-native deployment
+- Kubernetes/Docker integration
+- No file management needed
+
+### Method 4: UI Input (Development/Testing Only)
+
+AegisShield allows API key input through the UI sidebar:
+
+1. Launch application: `streamlit run main.py`
+2. In sidebar, enter API keys in respective fields
+3. Keys stored in session state (not persisted)
+
+<Warning>
+UI input is **not recommended for production** as keys are not persisted across sessions and must be re-entered each time.
+</Warning>
+
+## Streamlit Configuration
+
+### Application Settings
+
+Create `.streamlit/config.toml` for Streamlit customization:
+
+```toml
+[server]
+# Port to run on
+port = 8501
+
+# Address to bind to
+address = "localhost"
+
+# Max upload size in MB (for architecture diagrams)
+maxUploadSize = 200
+
+# Enable CORS
+enableCORS = false
+
+# Enable XSRF protection
+enableXsrfProtection = true
+
+# Enable websocket compression
+enableWebsocketCompression = true
+
+[browser]
+# Disable usage stats collection
+gatherUsageStats = false
+
+# Server address to display
+serverAddress = "localhost"
+
+# Server port to display  
+serverPort = 8501
+
+[theme]
+# Primary color
+primaryColor = "#1f77b4"
+
+# Background color
+backgroundColor = "#ffffff"
+
+# Secondary background color
+secondaryBackgroundColor = "#f0f2f6"
+
+# Text color
+textColor = "#262730"
+
+# Font family
+font = "sans serif"
+
+[logger]
+# Log level (error, warning, info, debug)
+level = "info"
+
+# Message format
+messageFormat = "%(asctime)s %(levelname)s: %(message)s"
+```
+
+### Production Configuration
+
+For production deployments:
+
+```toml
+[server]
+port = 8501
+address = "0.0.0.0"  # Listen on all interfaces
+maxUploadSize = 200
+enableCORS = false
+enableXsrfProtection = true
+headless = true  # Don't try to open browser
+
+[browser]
+gatherUsageStats = false
+
+[logger]
+level = "warning"  # Reduce log verbosity
+```
+
+## Advanced Configuration
+
+### Model Selection
+
+By default, AegisShield uses GPT-4o. To use alternative models, modify `main-batch.py` or `main.py`:
+
+```python
+# main-batch.py
+selected_model = "gpt-4o"  # Default
+
+# Alternative models (if available)
+# selected_model = "gpt-4o-mini"  # Faster, lower cost
+# selected_model = "gpt-4-turbo"   # Alternative model
+```
+
+### Batch Processing Configuration
+
+For research/batch generation, configure in `main-batch.py`:
+
+```python
+# Number of threat models per case study
+batches = 30
+
+# Parallel processing threads (balance speed vs API limits)
+workers = 3
+
+# API retry attempts
+retries = 6
+
+# Process specific case study (None = all)
+SPECIFIC_CASE_STUDY = None
+```
+
+**Performance tuning**:
+- `workers=1`: Slowest, most reliable, no rate limiting issues
+- `workers=3`: Balanced (recommended)
+- `workers=5+`: Faster but may hit OpenAI rate limits
+
+### MITRE ATT&CK Data
+
+MITRE ATT&CK data is loaded from local JSON files:
+
+```bash
+MITRE_ATTACK_DATA/
+├── enterprise-attack.json
+├── mobile-attack.json
+└── ics-attack.json
+```
+
+**Updating MITRE data**:
+```bash
+# Download latest STIX data
+curl -o MITRE_ATTACK_DATA/enterprise-attack.json \
+  https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json
+
+curl -o MITRE_ATTACK_DATA/mobile-attack.json \
+  https://raw.githubusercontent.com/mitre/cti/master/mobile-attack/mobile-attack.json
+
+curl -o MITRE_ATTACK_DATA/ics-attack.json \
+  https://raw.githubusercontent.com/mitre/cti/master/ics-attack/ics-attack.json
+```
+
+**Recommendation**: Update quarterly or when MITRE releases major updates.
+
+## Validation
+
+### Test Configuration
+
+Verify your configuration is working:
+
+<CodeGroup>
+```python Test Local Config
+# test_config.py
+try:
+    import local_config as conf
+    print("✓ local_config.py loaded successfully")
+    
+    if conf.default_openai_api_key:
+        print(f"✓ OpenAI API key configured (length: {len(conf.default_openai_api_key)})")
+    else:
+        print("✗ OpenAI API key missing")
+    
+    if conf.default_nvd_api_key:
+        print(f"✓ NVD API key configured (length: {len(conf.default_nvd_api_key)})")
+    else:
+        print("✗ NVD API key missing")
+    
+    if conf.default_alienvault_api_key:
+        print(f"✓ AlienVault API key configured (length: {len(conf.default_alienvault_api_key)})")
+    else:
+        print("✗ AlienVault API key missing")
+        
+except ImportError:
+    print("✗ local_config.py not found")
+```
+
+```bash Test API Connectivity
+# Test OpenAI
+curl https://api.openai.com/v1/models \
+  -H "Authorization: Bearer YOUR_OPENAI_KEY"
+
+# Test NVD (with key)
+curl "https://services.nvd.nist.gov/rest/json/cves/2.0?cpeName=cpe:2.3:a:microsoft:edge" \
+  -H "apiKey: YOUR_NVD_KEY"
+
+# Test AlienVault
+curl -X GET "https://otx.alienvault.com/api/v1/pulses/subscribed" \
+  -H "X-OTX-API-KEY: YOUR_ALIENVAULT_KEY"
+```
+</CodeGroup>
+
+### Common Configuration Issues
+
+<AccordionGroup>
+  <Accordion title="ImportError: No module named 'local_config'">
+    **Problem**: `local_config.py` not found
+    
+    **Solution**:
+    ```bash
+    # Verify file exists in project root
+    ls -la local_config.py
+    
+    # Create if missing
+    cat > local_config.py <<EOF
+    default_nvd_api_key="YOUR_NVD_KEY"
+    default_openai_api_key="YOUR_OPENAI_KEY"
+    default_alienvault_api_key="YOUR_ALIENVAULT_KEY"
+    EOF
+    ```
+  </Accordion>
+
+  <Accordion title="OpenAI Authentication Error">
+    **Problem**: "Incorrect API key provided" or "Invalid authentication"
+    
+    **Solutions**:
+    - Verify key starts with `sk-proj-` or `sk-`
+    - Check for extra spaces or quotes
+    - Regenerate key in OpenAI dashboard
+    - Verify account has GPT-4o access
+    
+    ```python
+    # Debug: Print first/last 4 chars
+    import local_config as conf
+    key = conf.default_openai_api_key
+    print(f"Key: {key[:4]}...{key[-4:]}")
+    ```
+  </Accordion>
+
+  <Accordion title="NVD Rate Limiting">
+    **Problem**: "Rate limit exceeded" or very slow vulnerability searches
+    
+    **Solutions**:
+    - Obtain NVD API key (increases limit from 5 to 50 requests/30s)
+    - Reduce batch processing `workers` count
+    - Built-in exponential backoff will handle this automatically
+    
+    ```python
+    # Batch config for slow NVD access
+    workers = 1  # Sequential processing
+    retries = 10  # More retries
+    ```
+  </Accordion>
+
+  <Accordion title="Streamlit Secrets Not Loading">
+    **Problem**: Secrets not accessible in deployed app
+    
+    **Solutions**:
+    1. Verify file location: `.streamlit/secrets.toml` (note the dot prefix)
+    2. Check TOML syntax:
+    ```toml
+    # Correct
+    [default]
+    key = "value"
+    
+    # Incorrect
+    key = value  # Missing quotes
+    key: "value"  # Wrong separator
+    ```
+    
+    3. Streamlit Cloud: Add secrets in dashboard under Settings → Secrets
+  </Accordion>
+</AccordionGroup>
+
+## Security Best Practices
+
+<Warning>
+**Critical Security Guidelines**:
+
+1. **Never commit secrets to version control**
+   ```bash
+   # .gitignore
+   local_config.py
+   .streamlit/secrets.toml
+   .env
+   ```
+
+2. **Use environment-specific configurations**
+   - Development: `local_config.py`
+   - Production: Environment variables or secret managers
+
+3. **Rotate API keys regularly**
+   - OpenAI: Quarterly or after suspected exposure
+   - NVD: Annually or after policy changes
+   - AlienVault: Bi-annually
+
+4. **Use least-privilege access**
+   - Separate keys for dev/staging/prod
+   - Monitor API usage for anomalies
+
+5. **Encrypt secrets at rest**
+   - Use AWS Secrets Manager, Azure Key Vault, or HashiCorp Vault
+   - Never store plain-text keys in CI/CD logs
+
+6. **Audit access logs**
+   - Review OpenAI usage dashboard
+   - Monitor NVD and AlienVault API usage
+   - Set up billing alerts
+</Warning>
+
+## Environment-Specific Configurations
+
+### Development
+```python
+# local_config.py
+default_nvd_api_key="dev-nvd-key"
+default_openai_api_key="dev-openai-key"
+default_alienvault_api_key="dev-alienvault-key"
+```
+
+### Staging
+```bash
+# .env.staging
+OPENAI_API_KEY=staging-key
+NVD_API_KEY=staging-key
+ALIENVAULT_API_KEY=staging-key
+```
+
+### Production
+```bash
+# Use secret management service
+aws secretsmanager get-secret-value --secret-id aegisshield/prod/openai
+kubectl create secret generic aegisshield-secrets \
+  --from-literal=openai-key=xxx \
+  --from-literal=nvd-key=xxx \
+  --from-literal=alienvault-key=xxx
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Docker Deployment" icon="docker" href="/guides/docker-deployment">
+    Deploy with Docker using environment variables
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Resolve configuration issues
+  </Card>
+</CardGroup>

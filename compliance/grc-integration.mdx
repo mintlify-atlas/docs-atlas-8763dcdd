@@ -1,0 +1,673 @@
+---
+title: 'GRC Tool Integration'
+description: 'Integrate AegisShield compliance data with enterprise GRC platforms'
+icon: 'plug'
+---
+
+## Overview
+
+AegisShield provides machine-readable control mappings that integrate seamlessly with enterprise Governance, Risk, and Compliance (GRC) tools. The `nist-sp-800-53-controls-mapping.json` file enables automated import of control implementations, evidence, and assessment data.
+
+<Info>
+  **Format**: JSON with comprehensive control metadata
+  
+  **Compatibility**: ServiceNow, RSA Archer, and custom GRC platforms
+  
+  **Automation**: Fully automated control import and compliance reporting
+</Info>
+
+## Machine-Readable Control Mapping
+
+The control mapping file provides structured data for each implemented control:
+
+```json
+{
+  "metadata": {
+    "application": "AegisShield Threat Modeler",
+    "framework": "NIST SP 800-53 Rev. 5",
+    "version": "1.0",
+    "total_controls": 15,
+    "control_families": 6
+  },
+  "controls": [
+    {
+      "control_id": "AC-3",
+      "control_name": "Access Enforcement",
+      "control_family": "Access Control",
+      "implementation_status": "implemented",
+      "primary_file": "api_key_handler.py",
+      "evidence": "Password-type input validation, session state management",
+      "assessment_methods": ["examine", "interview", "test"],
+      "compliance_frameworks": ["FedRAMP", "FISMA"]
+    }
+  ],
+  "assessment_summary": {
+    "total_controls_implemented": 15,
+    "implementation_coverage": "100%",
+    "compliance_frameworks_supported": ["FedRAMP", "FISMA"]
+  }
+}
+```
+
+## ServiceNow Integration
+
+### Import Controls via REST API
+
+Integrate AegisShield controls directly into ServiceNow GRC:
+
+```bash
+# Import NIST controls into ServiceNow
+curl -X POST "https://your-instance.servicenow.com/api/now/table/sn_grc_control" \
+     -H "Authorization: Bearer $SERVICENOW_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d @nist-sp-800-53-controls-mapping.json
+```
+
+### ServiceNow Import Script
+
+For batch import with transformation:
+
+```javascript
+// ServiceNow Import Script
+var AegisShieldImporter = Class.create();
+AegisShieldImporter.prototype = {
+  initialize: function() {
+    this.controlsData = this.loadControlsData();
+  },
+  
+  loadControlsData: function() {
+    // Load from attachment or external source
+    var jsonData = gs.getProperty('aegisshield.controls.json');
+    return JSON.parse(jsonData);
+  },
+  
+  importControls: function() {
+    var controls = this.controlsData.controls;
+    
+    for (var i = 0; i < controls.length; i++) {
+      var control = controls[i];
+      
+      // Create or update control record
+      var grControl = new GlideRecord('sn_grc_control');
+      grControl.addQuery('control_id', control.control_id);
+      grControl.query();
+      
+      if (!grControl.next()) {
+        grControl.initialize();
+      }
+      
+      // Map AegisShield data to ServiceNow fields
+      grControl.setValue('control_id', control.control_id);
+      grControl.setValue('name', control.control_name);
+      grControl.setValue('family', control.control_family);
+      grControl.setValue('implementation_status', control.implementation_status);
+      grControl.setValue('evidence', control.evidence);
+      grControl.setValue('framework', 'NIST SP 800-53 Rev. 5');
+      
+      // Save the record
+      if (grControl.isNewRecord()) {
+        grControl.insert();
+      } else {
+        grControl.update();
+      }
+      
+      gs.info('Imported control: ' + control.control_id);
+    }
+  },
+  
+  type: 'AegisShieldImporter'
+};
+```
+
+### ServiceNow Configuration
+
+<Steps>
+  <Step title="Create Integration User">
+    Create a ServiceNow user with GRC Admin role for API access
+  </Step>
+  
+  <Step title="Configure REST API">
+    Enable Table API for `sn_grc_control` table
+  </Step>
+  
+  <Step title="Map Fields">
+    Map AegisShield control attributes to ServiceNow GRC fields
+  </Step>
+  
+  <Step title="Import Data">
+    Run import script or REST API calls to load controls
+  </Step>
+  
+  <Step title="Validate">
+    Verify control records created with correct evidence and status
+  </Step>
+</Steps>
+
+## RSA Archer Integration
+
+### Python Integration Script
+
+Integrate AegisShield controls with RSA Archer GRC platform:
+
+```python
+import json
+import requests
+
+class ArcherIntegration:
+    def __init__(self, instance_url, session_token):
+        self.base_url = instance_url
+        self.session_token = session_token
+        self.headers = {
+            'Authorization': f'Archer session-id={session_token}',
+            'Content-Type': 'application/json'
+        }
+    
+    def load_aegisshield_controls(self, filepath='nist-sp-800-53-controls-mapping.json'):
+        """Load AegisShield control mappings"""
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    
+    def transform_control_for_archer(self, control):
+        """Transform AegisShield control to Archer format"""
+        return {
+            'ControlID': control['control_id'],
+            'ControlName': control['control_name'],
+            'ControlFamily': control['control_family'],
+            'ImplementationStatus': self.map_status(control['implementation_status']),
+            'Evidence': control['evidence'],
+            'PrimaryFile': control['primary_file'],
+            'AssessmentMethods': ', '.join(control['assessment_methods']),
+            'ComplianceFrameworks': ', '.join(control['compliance_frameworks']),
+            'Description': control['description'],
+            'ImplementationDetails': control['implementation_details']
+        }
+    
+    def map_status(self, aegis_status):
+        """Map AegisShield status to Archer values"""
+        status_map = {
+            'implemented': 'Implemented',
+            'partial': 'Partially Implemented',
+            'planned': 'Planned',
+            'not_applicable': 'Not Applicable'
+        }
+        return status_map.get(aegis_status, 'Unknown')
+    
+    def create_or_update_control(self, control_data):
+        """Create or update control in Archer"""
+        endpoint = f"{self.base_url}/api/core/content"
+        
+        # Check if control exists
+        search_payload = {
+            'applicationId': 123,  # Your Archer app ID
+            'fieldId': 456,  # Control ID field
+            'value': control_data['ControlID']
+        }
+        
+        search_response = requests.post(
+            f"{self.base_url}/api/core/content/search",
+            headers=self.headers,
+            json=search_payload
+        )
+        
+        existing_records = search_response.json()
+        
+        if existing_records:
+            # Update existing record
+            record_id = existing_records[0]['contentId']
+            response = requests.put(
+                f"{endpoint}/{record_id}",
+                headers=self.headers,
+                json=control_data
+            )
+        else:
+            # Create new record
+            response = requests.post(
+                endpoint,
+                headers=self.headers,
+                json=control_data
+            )
+        
+        return response.json()
+    
+    def import_all_controls(self):
+        """Import all AegisShield controls into Archer"""
+        controls_data = self.load_aegisshield_controls()
+        results = []
+        
+        for control in controls_data['controls']:
+            archer_control = self.transform_control_for_archer(control)
+            result = self.create_or_update_control(archer_control)
+            results.append({
+                'control_id': control['control_id'],
+                'status': 'success' if result else 'failed',
+                'result': result
+            })
+            print(f"Imported {control['control_id']}: {result}")
+        
+        return results
+
+# Usage example
+if __name__ == "__main__":
+    archer = ArcherIntegration(
+        instance_url="https://your-archer-instance.com",
+        session_token="your-session-token"
+    )
+    
+    results = archer.import_all_controls()
+    print(f"Import complete: {len(results)} controls processed")
+```
+
+### Archer Field Mapping
+
+<ParamField path="ControlID" type="string">
+  Maps to `control_id` (e.g., "AC-3")
+</ParamField>
+
+<ParamField path="ControlName" type="string">
+  Maps to `control_name` (e.g., "Access Enforcement")
+</ParamField>
+
+<ParamField path="ControlFamily" type="string">
+  Maps to `control_family` (e.g., "Access Control")
+</ParamField>
+
+<ParamField path="ImplementationStatus" type="enum">
+  Maps to `implementation_status` - Implemented, Partially Implemented, Planned, Not Applicable
+</ParamField>
+
+<ParamField path="Evidence" type="text">
+  Maps to `evidence` - Implementation evidence and artifacts
+</ParamField>
+
+<ParamField path="PrimaryFile" type="string">
+  Maps to `primary_file` - Source code location
+</ParamField>
+
+## Custom Dashboard Integration
+
+### JavaScript/React Integration
+
+Load AegisShield compliance data into custom dashboards:
+
+```javascript
+// Load into compliance dashboard
+fetch('nist-sp-800-53-controls-mapping.json')
+  .then(response => response.json())
+  .then(data => {
+    // Display summary metrics
+    console.log(`Implemented Controls: ${data.assessment_summary.total_controls_implemented}`);
+    console.log(`Compliance Coverage: ${data.assessment_summary.implementation_coverage}`);
+    
+    // Build control family breakdown
+    const familyBreakdown = Object.entries(data.control_families).map(([key, family]) => ({
+      abbreviation: key,
+      name: family.name,
+      count: family.controls_count,
+      coverage: family.implementation_percentage
+    }));
+    
+    // Render dashboard
+    renderComplianceDashboard(familyBreakdown, data.controls);
+  });
+
+function renderComplianceDashboard(families, controls) {
+  // Example: Render control family cards
+  families.forEach(family => {
+    const card = `
+      <div class="compliance-card">
+        <h3>${family.abbreviation} - ${family.name}</h3>
+        <p>Controls: ${family.count}</p>
+        <p>Coverage: ${family.coverage}%</p>
+      </div>
+    `;
+    document.getElementById('dashboard').innerHTML += card;
+  });
+  
+  // Example: Render control details table
+  const table = controls.map(control => `
+    <tr>
+      <td>${control.control_id}</td>
+      <td>${control.control_name}</td>
+      <td><span class="badge-implemented">${control.implementation_status}</span></td>
+      <td>${control.primary_file}</td>
+    </tr>
+  `).join('');
+  
+  document.getElementById('controls-table').innerHTML = table;
+}
+```
+
+### PowerBI Integration
+
+Import AegisShield compliance data into PowerBI:
+
+<Steps>
+  <Step title="Import JSON Data">
+    Use PowerBI Web connector to load `nist-sp-800-53-controls-mapping.json`
+  </Step>
+  
+  <Step title="Transform Data">
+    Expand nested `controls` array and `control_families` object
+  </Step>
+  
+  <Step title="Create Relationships">
+    Link controls to families using `control_family_abbreviation`
+  </Step>
+  
+  <Step title="Build Visualizations">
+    Create charts for control coverage, family breakdown, and framework compliance
+  </Step>
+</Steps>
+
+## Automated Compliance Queries
+
+### Using jq for JSON Processing
+
+Extract specific compliance data using `jq`:
+
+<CodeGroup>
+
+```bash Find All Access Control Implementations
+# Find all Access Control implementations
+jq '.controls[] | select(.control_family_abbreviation == "AC")' \
+  nist-sp-800-53-controls-mapping.json
+
+# Output:
+# {
+#   "control_id": "AC-3",
+#   "control_name": "Access Enforcement",
+#   "control_family": "Access Control",
+#   "implementation_status": "implemented",
+#   ...
+# }
+```
+
+```bash Extract Evidence for Specific Control
+# Extract evidence for specific control
+jq '.controls[] | select(.control_id == "AU-3") | .evidence' \
+  nist-sp-800-53-controls-mapping.json
+
+# Output:
+# "Structured log formats, comprehensive metadata capture, contextual error information"
+```
+
+```bash Generate Control Implementation Matrix
+# Generate control implementation matrix
+jq '.controls[] | {control_id, status: .implementation_status, file: .primary_file}' \
+  nist-sp-800-53-controls-mapping.json
+
+# Output:
+# {
+#   "control_id": "AC-3",
+#   "status": "implemented",
+#   "file": "api_key_handler.py"
+# }
+# {
+#   "control_id": "IA-2",
+#   "status": "implemented",
+#   "file": "api_key_handler.py"
+# }
+```
+
+```bash List Enhancement Controls
+# List all enhancement controls implemented
+jq '.controls[] | select(has("enhancement_implemented")) | 
+    {control_id, enhancement: .enhancement_implemented}' \
+  nist-sp-800-53-controls-mapping.json
+
+# Output:
+# {
+#   "control_id": "IA-5",
+#   "enhancement": "IA-5(1)"
+# }
+# {
+#   "control_id": "SC-12",
+#   "enhancement": "SC-12(2)"
+# }
+```
+
+```bash Export Control Family Summary
+# Export control family summary
+jq '.control_families | to_entries | 
+    map({family: .key, name: .value.name, controls: .value.controls_count})' \
+  nist-sp-800-53-controls-mapping.json
+
+# Output:
+# [
+#   {"family": "AC", "name": "Access Control", "controls": 1},
+#   {"family": "IA", "name": "Identification and Authentication", "controls": 2},
+#   ...
+# ]
+```
+
+```bash Filter by Compliance Framework
+# Filter by compliance framework (FedRAMP)
+jq '.controls[] | 
+    select(.compliance_frameworks[] == "FedRAMP") | 
+    {control_id, control_name, frameworks: .compliance_frameworks}' \
+  nist-sp-800-53-controls-mapping.json
+```
+
+```bash Generate Assessment Summary
+# Generate assessment summary
+jq '.assessment_summary' nist-sp-800-53-controls-mapping.json
+
+# Output:
+# {
+#   "total_controls_implemented": 15,
+#   "implementation_coverage": "100%",
+#   "primary_assessment_methods": ["examine", "interview", "test"],
+#   "compliance_frameworks_supported": ["FedRAMP", "FISMA"]
+# }
+```
+
+```bash Export to CSV Format
+# Export to CSV format
+jq -r '.controls[] | 
+    [.control_id, .control_name, .implementation_status, .primary_file] | 
+    @csv' \
+  nist-sp-800-53-controls-mapping.json > controls.csv
+```
+
+</CodeGroup>
+
+### Python Query Examples
+
+Query AegisShield controls using Python:
+
+```python
+import json
+
+class ControlQueryEngine:
+    def __init__(self, mapping_file='nist-sp-800-53-controls-mapping.json'):
+        with open(mapping_file, 'r') as f:
+            self.data = json.load(f)
+    
+    def get_controls_by_family(self, family_abbr):
+        """Get all controls for a specific family"""
+        return [
+            c for c in self.data['controls']
+            if c['control_family_abbreviation'] == family_abbr
+        ]
+    
+    def get_control_evidence(self, control_id):
+        """Get implementation evidence for specific control"""
+        for control in self.data['controls']:
+            if control['control_id'] == control_id:
+                return {
+                    'evidence': control['evidence'],
+                    'locations': control['implementation_locations'],
+                    'details': control['implementation_details']
+                }
+        return None
+    
+    def get_enhancement_controls(self):
+        """Get all controls with enhancements implemented"""
+        return [
+            {
+                'control_id': c['control_id'],
+                'enhancement': c['enhancement_implemented']
+            }
+            for c in self.data['controls']
+            if 'enhancement_implemented' in c
+        ]
+    
+    def get_compliance_summary(self, framework='FedRAMP'):
+        """Get compliance summary for specific framework"""
+        applicable_controls = [
+            c for c in self.data['controls']
+            if framework in c['compliance_frameworks']
+        ]
+        
+        return {
+            'framework': framework,
+            'total_controls': len(applicable_controls),
+            'implemented': len([c for c in applicable_controls if c['implementation_status'] == 'implemented']),
+            'coverage_percentage': 100 * len([c for c in applicable_controls if c['implementation_status'] == 'implemented']) / len(applicable_controls)
+        }
+    
+    def export_to_grc_format(self, output_format='servicenow'):
+        """Export to GRC tool format"""
+        if output_format == 'servicenow':
+            return self._format_for_servicenow()
+        elif output_format == 'archer':
+            return self._format_for_archer()
+        else:
+            return self.data
+    
+    def _format_for_servicenow(self):
+        return [
+            {
+                'control_id': c['control_id'],
+                'name': c['control_name'],
+                'family': c['control_family'],
+                'status': c['implementation_status'],
+                'evidence': c['evidence'],
+                'framework': 'NIST SP 800-53 Rev. 5'
+            }
+            for c in self.data['controls']
+        ]
+
+# Usage
+query = ControlQueryEngine()
+
+# Get all audit controls
+audit_controls = query.get_controls_by_family('AU')
+print(f"Found {len(audit_controls)} audit controls")
+
+# Get evidence for specific control
+evidence = query.get_control_evidence('AC-3')
+print(f"AC-3 Evidence: {evidence['evidence']}")
+
+# Get FedRAMP compliance summary
+fedramp_summary = query.get_compliance_summary('FedRAMP')
+print(f"FedRAMP Coverage: {fedramp_summary['coverage_percentage']}%")
+```
+
+## Integration Workflows
+
+### Weekly Compliance Sync
+
+Automate weekly synchronization of AegisShield controls to GRC platform:
+
+<Steps>
+  <Step title="Extract Latest Controls">
+    Pull latest `nist-sp-800-53-controls-mapping.json` from repository
+  </Step>
+  
+  <Step title="Transform Data">
+    Convert to target GRC platform format
+  </Step>
+  
+  <Step title="Sync to GRC">
+    Push updates via API (ServiceNow, Archer, etc.)
+  </Step>
+  
+  <Step title="Validate">
+    Verify all controls synchronized correctly
+  </Step>
+  
+  <Step title="Report">
+    Generate sync report with any errors or warnings
+  </Step>
+</Steps>
+
+### Automated Assessment Reporting
+
+Generate compliance reports automatically:
+
+```bash
+#!/bin/bash
+# generate-compliance-report.sh
+
+echo "AegisShield Compliance Report" > report.txt
+echo "Generated: $(date)" >> report.txt
+echo "" >> report.txt
+
+echo "=== Assessment Summary ===" >> report.txt
+jq '.assessment_summary' nist-sp-800-53-controls-mapping.json >> report.txt
+echo "" >> report.txt
+
+echo "=== Control Families ===" >> report.txt
+jq '.control_families' nist-sp-800-53-controls-mapping.json >> report.txt
+echo "" >> report.txt
+
+echo "=== FedRAMP Controls ===" >> report.txt
+jq '.controls[] | select(.compliance_frameworks[] == "FedRAMP") | 
+    {control_id, control_name, status: .implementation_status}' \
+  nist-sp-800-53-controls-mapping.json >> report.txt
+
+echo "Report generated: report.txt"
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Version Control">
+    - Store control mappings in version control
+    - Track changes to control implementations
+    - Tag releases with compliance milestones
+    - Maintain audit trail of all modifications
+  </Accordion>
+  
+  <Accordion title="Automated Testing">
+    - Validate JSON schema before import
+    - Test GRC integration in staging environment
+    - Verify data integrity after synchronization
+    - Monitor for failed imports or API errors
+  </Accordion>
+  
+  <Accordion title="Documentation">
+    - Document field mappings for each GRC platform
+    - Maintain runbooks for integration procedures
+    - Record API credentials securely
+    - Keep integration scripts updated
+  </Accordion>
+  
+  <Accordion title="Security">
+    - Use service accounts for API access
+    - Rotate API tokens regularly
+    - Encrypt credentials in transit and at rest
+    - Audit all integration activities
+  </Accordion>
+</AccordionGroup>
+
+## Additional Resources
+
+<CardGroup cols={2}>
+  <Card title="NIST SP 800-53 Controls" icon="shield-check" href="/compliance/nist-sp-800-53">
+    View detailed control implementations
+  </Card>
+  
+  <Card title="FedRAMP Readiness" icon="building-flag" href="/compliance/fedramp">
+    Learn about FedRAMP compliance
+  </Card>
+  
+  <Card title="ServiceNow GRC" icon="cloud" href="https://www.servicenow.com/products/governance-risk-compliance.html">
+    ServiceNow GRC platform documentation
+  </Card>
+  
+  <Card title="RSA Archer" icon="tower-observation" href="https://www.archerirm.com/">
+    RSA Archer GRC suite information
+  </Card>
+</CardGroup>

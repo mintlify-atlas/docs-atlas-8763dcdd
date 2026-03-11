@@ -1,0 +1,260 @@
+---
+title: 'AlienVault OTX API'
+description: 'API reference for AlienVault Open Threat Exchange search functions'
+---
+
+## Overview
+
+The AlienVault Search module provides functions to fetch threat intelligence data from AlienVault Open Threat Exchange (OTX). It implements NIST SP 800-53 Rev. 5 controls for threat intelligence monitoring and risk assessment.
+
+### NIST SP 800-53 Rev. 5 Controls Implemented
+
+- **SI-4** (Information System Monitoring): Continuous threat intelligence monitoring
+- **RA-3** (Risk Assessment): Threat intelligence integration for risk analysis
+- **PM-16** (Threat Awareness Program): External threat intelligence consumption
+- **SC-7** (Boundary Protection): Secure external threat intelligence API communication
+- **AU-3** (Content of Audit Records): Threat intelligence query logging
+
+---
+
+## Classes
+
+### AlienVaultAPIError
+
+```python
+class AlienVaultAPIError(Exception):
+    pass
+```
+
+Custom exception for AlienVault API related errors.
+
+---
+
+## Functions
+
+### fetch_otx_data()
+
+```python
+def fetch_otx_data(
+    api_key: str,
+    technology: str | None = None,
+    industry: str | None = None,
+    days: int = 2920,
+    max_results: int = 5,
+    adversary: str | None = None,
+    malware_family: str | None = None,
+    tlp: str | None = None,
+) -> str
+```
+
+Fetch Threat Intelligence data from AlienVault OTX based on various filtering criteria.
+
+<ParamField path="api_key" type="str" required>
+  The API key for accessing the OTX API
+</ParamField>
+
+<ParamField path="technology" type="str | None" default="None">
+  The technology of interest for threat intelligence filtering
+</ParamField>
+
+<ParamField path="industry" type="str | None" default="None">
+  The industry of interest (used in search query)
+</ParamField>
+
+<ParamField path="days" type="int" default="2920">
+  The number of days to look back from today (default is ~8 years)
+</ParamField>
+
+<ParamField path="max_results" type="int" default="5">
+  The maximum number of threat intelligence pulses to return
+</ParamField>
+
+<ParamField path="adversary" type="str | None" default="None">
+  Filter results by specific adversary name (case-insensitive partial match)
+</ParamField>
+
+<ParamField path="malware_family" type="str | None" default="None">
+  Filter results by specific malware family (case-insensitive exact match)
+</ParamField>
+
+<ParamField path="tlp" type="str | None" default="None">
+  Filter by TLP (Traffic Light Protocol) level (case-insensitive)
+</ParamField>
+
+<ResponseField name="return" type="str">
+  A formatted string containing threat intelligence pulse information including:
+  - Industry
+  - Pulse name
+  - Description
+  - Modified date
+  - TLP level
+  - Adversary
+  - Malware families
+  - Total pulses found
+  
+  Returns None if API call fails after retries.
+</ResponseField>
+
+#### Error Handling
+
+**Raises:**
+- `AlienVaultAPIError`: For various API-related errors including:
+  - No response from OTX API
+  - Timeout while searching pulses
+  - Rate limit exceeded (HTTP 429)
+  - Other HTTP errors
+  - Unexpected errors during processing
+
+**Behavior:**
+- Uses retry logic with exponential backoff (3 attempts by default)
+- Logs all errors through the error handler
+- Returns None on failure rather than raising exceptions
+- Returns "No threat intelligence data found" if no matching pulses exist
+
+#### Filtering Logic
+
+Pulses are filtered by:
+1. **Modified date**: Must be within specified `days` parameter
+2. **Public status**: Only public pulses (public=1)
+3. **Adversary**: Case-insensitive partial match if specified
+4. **Malware family**: Case-insensitive exact match if specified
+5. **TLP level**: Case-insensitive exact match if specified
+
+Results are sorted by modified date (most recent first) and limited to `max_results`.
+
+#### Example Usage
+
+```python
+from alientvault_search import fetch_otx_data
+
+# Basic usage - search by industry
+result = fetch_otx_data(
+    api_key="your_alienvault_api_key",
+    industry="Healthcare",
+    max_results=10
+)
+print(result)
+
+# Advanced filtering by adversary and malware family
+result = fetch_otx_data(
+    api_key="your_alienvault_api_key",
+    industry="Financial Services",
+    days=365,  # Last year only
+    max_results=5,
+    adversary="APT29",
+    malware_family="Emotet",
+    tlp="white"
+)
+
+# Search with technology focus
+result = fetch_otx_data(
+    api_key="your_alienvault_api_key",
+    technology="Apache",
+    industry="Technology",
+    days=90,  # Last 90 days
+    max_results=15
+)
+```
+
+---
+
+### retry_with_backoff()
+
+```python
+def retry_with_backoff(
+    func,
+    max_retries: int = 3,
+    initial_delay: float = 1.0
+)
+```
+
+Retry a function with exponential backoff for resilient API communication.
+
+<ParamField path="func" type="callable" required>
+  The function to retry (should be a callable with no arguments)
+</ParamField>
+
+<ParamField path="max_retries" type="int" default="3">
+  Maximum number of retry attempts
+</ParamField>
+
+<ParamField path="initial_delay" type="float" default="1.0">
+  Initial delay in seconds between retry attempts
+</ParamField>
+
+<ResponseField name="return" type="any">
+  The result of the function call if successful, or None if all retries fail
+</ResponseField>
+
+#### Error Handling
+
+- Catches `RequestException` and `Timeout` exceptions
+- Logs warnings for each retry attempt
+- Implements exponential backoff (delay doubles after each attempt)
+- Calls error handler on final failure
+- Returns None after exhausting all retries
+
+#### Example Usage
+
+```python
+from alientvault_search import retry_with_backoff
+
+def search_operation():
+    # Your API call logic here
+    return otx.search_pulses(query, max_results=100)
+
+result = retry_with_backoff(
+    search_operation,
+    max_retries=5,
+    initial_delay=2.0
+)
+```
+
+---
+
+## Implementation Notes
+
+### Date Filtering
+
+The module uses ISO 8601 format for date filtering:
+```python
+modified_since = (datetime.now() - timedelta(days=days)).isoformat()
+```
+
+This ensures only recent threat intelligence is retrieved based on the `days` parameter.
+
+### Logging
+
+All functions implement comprehensive logging:
+- API key masking for security (only first 8 characters shown)
+- Debug logs for search queries and date ranges
+- Info logs for pulse counts (found and filtered)
+- Warning logs for processing errors
+- Error handling through centralized error handler
+
+### Security
+
+- API keys are masked in all log output
+- Never logs sensitive credentials
+- Implements rate limit handling
+- Uses secure retry logic with exponential backoff
+- Only returns public pulses
+
+### Traffic Light Protocol (TLP)
+
+The module supports TLP filtering with standard levels:
+- **white**: Information can be shared publicly
+- **green**: Community sharing
+- **amber**: Limited distribution
+- **red**: No distribution beyond recipients
+
+### Pulse Structure
+
+Each pulse returned contains:
+- **name**: Title of the threat intelligence pulse
+- **description**: Detailed information about the threat
+- **modified**: Last modification timestamp
+- **TLP**: Traffic Light Protocol classification
+- **adversary**: Attributed threat actor
+- **malware_families**: List of associated malware families
+- **public**: Visibility status (always 1 for returned results)

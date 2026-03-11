@@ -1,0 +1,567 @@
+---
+title: "PDF Report Generation"
+description: "Comprehensive PDF documentation generation combining all threat modeling artifacts into a professional report"
+---
+
+# PDF Report Generation
+
+AegisShield generates comprehensive PDF reports that compile all threat modeling artifacts into a single, professional document suitable for distribution to stakeholders, auditors, and development teams.
+
+## Overview
+
+The PDF generation module (`tabs/step7_generate_pdf.py`) uses `markdown2` for HTML conversion and `xhtml2pdf` (ReportLab) for PDF rendering.
+
+<CardGroup cols={3}>
+  <Card title="20-40 Pages" icon="file-pdf">
+    Comprehensive threat model documentation
+  </Card>
+  <Card title="10 Sections" icon="list-ol">
+    From executive summary to test cases
+  </Card>
+  <Card title="Professional Format" icon="award">
+    Styled tables, code blocks, and diagrams
+  </Card>
+</CardGroup>
+
+## Report Structure
+
+The generated PDF includes these sections:
+
+<Steps>
+  <Step title="Executive Summary">
+    - Application name and type
+    - Industry sector
+    - Internet exposure
+    - Key findings overview
+    - Risk summary
+  </Step>
+  
+  <Step title="Application Description">
+    - Detailed application description
+    - Architecture overview
+    - Technology stack with versions
+    - Authentication methods
+    - Data sensitivity classification
+  </Step>
+  
+  <Step title="STRIDE Threat Model">
+    - All 18 threats (3 per category)
+    - Threat scenarios
+    - Assumptions (Role, Condition)
+    - Potential impacts
+    - MITRE ATT&CK keywords
+  </Step>
+  
+  <Step title="MITRE ATT&CK Analysis">
+    - Mapped techniques with IDs
+    - Technique descriptions
+    - Attack pattern IDs
+    - Links to ATT&CK framework
+  </Step>
+  
+  <Step title="Vulnerability Assessment">
+    - NVD CVEs for technology stack
+    - CVSS scores and severity
+    - CVE descriptions
+    - Affected components
+  </Step>
+  
+  <Step title="Threat Intelligence">
+    - AlienVault OTX pulses
+    - Industry-specific threats
+    - Adversary groups
+    - Malware families
+    - Indicators of Compromise (IOCs)
+  </Step>
+  
+  <Step title="Mitigation Strategies">
+    - Specific mitigations per threat
+    - Implementation guidance
+    - Best practices
+    - Control recommendations
+  </Step>
+  
+  <Step title="DREAD Risk Assessment">
+    - Risk scores (1-10) for each threat
+    - Damage, Reproducibility, Exploitability, Affected Users, Discoverability
+    - Overall risk score
+    - Prioritized threat list
+  </Step>
+  
+  <Step title="Attack Trees">
+    - Mermaid diagram visualization
+    - Hierarchical attack paths
+    - STRIDE category organization
+    - Sub-threats and attack vectors
+  </Step>
+  
+  <Step title="Security Test Cases">
+    - Gherkin-formatted test scenarios
+    - Given-When-Then structure
+    - Threat-specific validation
+    - Ready for test framework integration
+  </Step>
+</Steps>
+
+## Implementation
+
+### Dependencies
+
+```python From step7_generate_pdf.py:17-24
+import base64
+import io
+import json
+from datetime import datetime
+import markdown2
+from xhtml2pdf import pisa
+```
+
+<Note>
+`xhtml2pdf` requires Cairo and Pango libraries for PDF rendering. See [Installation](/installation) for setup.
+</Note>
+
+### Core Conversion Functions
+
+<Accordion title="convert_markdown_to_html()" icon="markdown">
+  Basic markdown to HTML conversion:
+  
+  ```python step7_generate_pdf.py:103-114
+  def convert_markdown_to_html(markdown_text):
+      return markdown2.markdown(markdown_text)
+  ```
+</Accordion>
+
+<Accordion title="convert_markdown_to_html_desc()" icon="file-lines">
+  Enhanced conversion with extras:
+  
+  ```python step7_generate_pdf.py:116-127
+  def convert_markdown_to_html_desc(markdown_text):
+      return markdown2.markdown(
+          markdown_text, 
+          extras=["fenced-code-blocks", "tables", "strike", "cuddled-lists"]
+      )
+  ```
+</Accordion>
+
+<Accordion title="convert_stride_to_html_table()" icon="table">
+  Converts STRIDE threat model to HTML table:
+  
+  ```python
+  def convert_stride_to_html_table(threat_model_json):
+      html = '<table class="threat-table">'
+      html += '<tr><th>Threat Type</th><th>Scenario</th><th>Impact</th><th>Assumptions</th></tr>'
+      
+      for threat in threat_model_json:
+          assumptions_html = '<ul>'
+          for assumption in threat.get('Assumptions', []):
+              assumptions_html += f'<li><strong>{assumption.get("Assumption")}</strong> '
+              assumptions_html += f'(Role: {assumption.get("Role")}, '
+              assumptions_html += f'Condition: {assumption.get("Condition")})</li>'
+          assumptions_html += '</ul>'
+          
+          html += f'<tr>'
+          html += f'<td>{threat.get("Threat Type")}</td>'
+          html += f'<td>{threat.get("Scenario")}</td>'
+          html += f'<td>{threat.get("Potential Impact")}</td>'
+          html += f'<td>{assumptions_html}</td>'
+          html += '</tr>'
+      
+      html += '</table>'
+      return html
+  ```
+</Accordion>
+
+<Accordion title="format_gherkin_tests()" icon="vial">
+  Formats Gherkin test cases with syntax highlighting:
+  
+  ```python
+  def format_gherkin_tests(test_cases_markdown):
+      # Convert markdown to HTML
+      html = markdown2.markdown(test_cases_markdown, extras=["fenced-code-blocks"])
+      
+      # Apply Gherkin-specific styling
+      html = html.replace('<code class="gherkin">', '<code class="gherkin-test">')
+      
+      return html
+  ```
+</Accordion>
+
+### PDF Styling
+
+The module includes comprehensive CSS styling:
+
+```css PDF styles
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        margin: 40px;
+    }
+    
+    h1 {
+        color: #1e3a8a;
+        border-bottom: 3px solid #3b82f6;
+        padding-bottom: 10px;
+        page-break-after: avoid;
+    }
+    
+    h2 {
+        color: #1e3a8a;
+        border-bottom: 2px solid #3b82f6;
+        padding-bottom: 8px;
+        page-break-after: avoid;
+        margin-top: 30px;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        page-break-inside: avoid;
+    }
+    
+    table th {
+        background-color: #1e3a8a;
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: bold;
+    }
+    
+    table td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        vertical-align: top;
+    }
+    
+    table tr:nth-child(even) {
+        background-color: #f9fafb;
+    }
+    
+    code {
+        background-color: #f3f4f6;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+    }
+    
+    pre {
+        background-color: #1f2937;
+        color: #f9fafb;
+        padding: 15px;
+        border-radius: 5px;
+        overflow-x: auto;
+        page-break-inside: avoid;
+    }
+    
+    .gherkin-test {
+        color: #10b981;
+    }
+</style>
+```
+
+<Tip>
+The color scheme uses AegisShield's brand colors: primary (#1e3a8a), light (#3b82f6), and dark (#0f172a).
+</Tip>
+
+## Generation Process
+
+```python PDF generation workflow
+import streamlit as st
+from xhtml2pdf import pisa
+import markdown2
+from datetime import datetime
+
+def generate_pdf():
+    # 1. Collect all data from session state
+    app_description = st.session_state.get('app_input', '')
+    threat_model = st.session_state.get('session_threat_model_json', [])
+    mitre_data = st.session_state.get('mitre_attack_markdown', '')
+    mitigations = st.session_state.get('session_mitigations_markdown', '')
+    dread = st.session_state.get('session_dread_assessment_markdown', '')
+    test_cases = st.session_state.get('session_test_cases_markdown', '')
+    attack_tree = st.session_state.get('attack_tree_code', '')
+    
+    # 2. Convert sections to HTML
+    html_parts = []
+    
+    # Title page
+    html_parts.append(f'<h1>Threat Model Report</h1>')
+    html_parts.append(f'<p><strong>Generated:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>')
+    
+    # Application description
+    html_parts.append('<h2>Application Description</h2>')
+    html_parts.append(convert_markdown_to_html_desc(app_description))
+    
+    # Threat model
+    html_parts.append('<h2>STRIDE Threat Model</h2>')
+    html_parts.append(convert_stride_to_html_table(threat_model))
+    
+    # MITRE ATT&CK
+    html_parts.append(convert_mitre_attack_to_html(mitre_data))
+    
+    # Mitigations
+    html_parts.append('<h2>Mitigation Strategies</h2>')
+    html_parts.append(convert_markdown_to_html(mitigations))
+    
+    # DREAD
+    html_parts.append('<h2>DREAD Risk Assessment</h2>')
+    html_parts.append(convert_dread_to_html_table(dread))
+    
+    # Attack tree
+    html_parts.append('<h2>Attack Tree</h2>')
+    html_parts.append(f'<pre><code>{attack_tree}</code></pre>')
+    
+    # Test cases
+    html_parts.append('<h2>Security Test Cases</h2>')
+    html_parts.append(format_gherkin_tests(test_cases))
+    
+    # 3. Combine HTML with CSS
+    full_html = f'''
+    <html>
+    <head>
+        <style>
+            {css_styles}
+        </style>
+    </head>
+    <body>
+        {''.join(html_parts)}
+    </body>
+    </html>
+    '''
+    
+    # 4. Generate PDF
+    output = io.BytesIO()
+    pisa_status = pisa.CreatePDF(
+        full_html.encode('utf-8'),
+        dest=output
+    )
+    
+    if pisa_status.err:
+        raise Exception("PDF generation failed")
+    
+    # 5. Return PDF bytes
+    pdf_bytes = output.getvalue()
+    output.close()
+    
+    return pdf_bytes
+```
+
+## Streamlit UI
+
+The PDF generation tab provides a download button:
+
+```python UI implementation
+import streamlit as st
+import base64
+
+if st.button("Generate PDF Report"):
+    with st.spinner("Generating PDF Report..."):
+        try:
+            # Generate PDF
+            pdf_bytes = generate_pdf()
+            
+            # Encode for download
+            b64_pdf = base64.b64encode(pdf_bytes).decode()
+            
+            # Create download link
+            filename = f"threat_model_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="{filename}">Download PDF Report</a>'
+            
+            st.success("PDF generated successfully!")
+            st.markdown(href, unsafe_allow_html=True)
+            
+        except Exception as e:
+            st.error(f"Error generating PDF: {str(e)}")
+            logger.error(f"PDF generation error: {str(e)}", exc_info=True)
+```
+
+## Page Breaks
+
+The module includes strategic page breaks:
+
+```python Page break control
+# Force page break before major sections
+html = f'<div style="page-break-before: always;">{html}</div>'
+
+# Avoid breaking tables
+html = f'<div style="page-break-inside: avoid;">{html}</div>'
+
+# Keep headings with content
+h2_style = 'page-break-after: avoid;'
+```
+
+<Note>
+Page breaks ensure that tables, code blocks, and related content stay together in the PDF.
+</Note>
+
+## File Naming
+
+Generated PDFs use timestamped filenames:
+
+```python
+filename = f"threat_model_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+# Example: threat_model_20240311_143052.pdf
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Cairo/Pango Not Found" icon="triangle-exclamation">
+    **Symptom:** `OSError: cannot load library 'libcairo.so.2'`
+    
+    **Solution:**
+    ```bash Ubuntu/Debian
+    sudo apt-get update
+    sudo apt-get install libcairo2-dev libpango1.0-dev
+    pip install --upgrade xhtml2pdf
+    ```
+    
+    ```bash macOS
+    brew install cairo pango
+    pip install --upgrade xhtml2pdf
+    ```
+  </Accordion>
+  
+  <Accordion title="Unicode Errors" icon="font">
+    **Symptom:** Characters not rendering correctly in PDF.
+    
+    **Solution:** The code uses UTF-8 encoding:
+    ```python
+    pisa.CreatePDF(full_html.encode('utf-8'), dest=output)
+    ```
+    
+    Ensure all input data is UTF-8 encoded.
+  </Accordion>
+  
+  <Accordion title="Tables Broken Across Pages" icon="table">
+    **Symptom:** Tables split awkwardly across pages.
+    
+    **Solution:** Add page-break-inside: avoid to table styles:
+    ```css
+    table {
+        page-break-inside: avoid;
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Large PDF File Size" icon="file-arrow-up">
+    **Symptom:** PDF files larger than expected (>10 MB).
+    
+    **Solution:**
+    - Remove embedded images if any
+    - Limit attack tree complexity
+    - Reduce number of threat model iterations
+  </Accordion>
+</AccordionGroup>
+
+## Customization
+
+### Custom Branding
+
+Add your organization's branding:
+
+```python
+# Add logo to title page
+logo_html = f'''
+<div style="text-align: center;">
+    <img src="data:image/png;base64,{logo_base64}" width="200">
+    <h1>Threat Model Report</h1>
+    <p><strong>{organization_name}</strong></p>
+</div>
+'''
+```
+
+### Custom Sections
+
+Add additional sections:
+
+```python
+# Compliance section
+html_parts.append('<h2>Compliance Mapping</h2>')
+html_parts.append('<p>This threat model addresses the following compliance requirements:</p>')
+html_parts.append('<ul>')
+html_parts.append('<li><strong>NIST SP 800-53:</strong> AC-3, IA-5, SC-7, SI-4, AU-3</li>')
+html_parts.append('<li><strong>GDPR:</strong> Article 32 (Security of Processing)</li>')
+html_parts.append('</ul>')
+```
+
+### Custom Styling
+
+Modify the CSS to match your brand:
+
+```css
+h1, h2 {
+    color: #your-brand-color;
+    border-bottom-color: #your-brand-color;
+}
+
+table th {
+    background-color: #your-brand-color;
+}
+```
+
+## Session State Requirements
+
+The PDF generator requires these session variables:
+
+<ParamField path="step6_completed" type="bool" required>
+  All previous steps completed
+</ParamField>
+
+<ParamField path="app_input" type="str" required>
+  Application description
+</ParamField>
+
+<ParamField path="session_threat_model_json" type="list" required>
+  STRIDE threat model
+</ParamField>
+
+<ParamField path="mitre_attack_markdown" type="str" required>
+  MITRE ATT&CK mappings
+</ParamField>
+
+<ParamField path="session_mitigations_markdown" type="str" required>
+  Mitigation strategies
+</ParamField>
+
+<ParamField path="session_dread_assessment_markdown" type="str" required>
+  DREAD risk assessment
+</ParamField>
+
+<ParamField path="session_test_cases_markdown" type="str" required>
+  Security test cases
+</ParamField>
+
+<ParamField path="attack_tree_code" type="str" required>
+  Attack tree diagram
+</ParamField>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Complete All Steps" icon="list-check">
+    Ensure all 6 previous steps are completed before generating PDF. Missing data will result in incomplete reports.
+  </Card>
+  
+  <Card title="Review Before Export" icon="eye">
+    Review each section in the UI tabs before generating the PDF. Make any necessary corrections.
+  </Card>
+  
+  <Card title="Save Incrementally" icon="floppy-disk">
+    Download intermediate outputs (threat model JSON, test cases) as you go. Don't rely solely on the final PDF.
+  </Card>
+  
+  <Card title="Version Control" icon="code-branch">
+    Include PDF reports in version control alongside code for traceability.
+  </Card>
+</CardGroup>
+
+## Related Features
+
+- [7-Step Process](/workflows/seven-step-process) - Complete workflow overview
+- [Threat Modeling](/features/threat-modeling) - STRIDE threat generation
+- [Attack Trees](/features/attack-trees) - Diagram visualization
+- [Test Cases](/features/test-cases) - Gherkin test generation

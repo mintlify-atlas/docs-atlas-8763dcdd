@@ -1,0 +1,209 @@
+---
+title: Writing Effective Application Descriptions
+description: Learn how to write comprehensive application descriptions that enable AegisShield to generate accurate threat models
+---
+
+# Writing Effective Application Descriptions
+
+The application description is the foundation of your threat model. A well-written description helps AegisShield generate accurate, comprehensive threats tailored to your specific system.
+
+## What Information to Include
+
+Your application description should provide a complete picture of your system. Based on real-world examples, here's what to include:
+
+<Steps>
+  <Step title="Application Purpose">
+    Start with a clear statement of what your application does and who uses it.
+    
+    **Example from Voice-Based Applications:**
+    > "A voice-based application with IoT integration, designed to facilitate user interactions through voice commands."
+  </Step>
+
+  <Step title="Architecture Overview">
+    Describe the major components and how they interact.
+    
+    **Example from Retail Management System:**
+    > "The application features an Angular frontend and a Flask backend with a MySQL database. Store managers can sign up for an account, log in using email and password authentication, and manage their inventory, sales, and employee schedules."
+  </Step>
+
+  <Step title="Key Features and Workflows">
+    List the main features and typical user workflows.
+    
+    **Example:**
+    - User authentication (email and password)
+    - Real-time inventory management
+    - Sales tracking and reporting
+    - Employee schedule management
+    - Low stock notifications
+  </Step>
+
+  <Step title="Data Handling">
+    Explain what data the system processes and how it's protected.
+    
+    **Example:**
+    > "Data is encrypted both in transit and at rest, and the system includes role-based access control to restrict sensitive information to authorized personnel."
+  </Step>
+
+  <Step title="External Integrations">
+    Mention any third-party services or external systems.
+    
+    **Example:**
+    > "The application integrates with popular payment gateways like Stripe and PayPal to process transactions securely."
+  </Step>
+</Steps>
+
+## Complete Example Description
+
+Here's the example from the AegisShield interface (`step1_description.py:238-239`):
+
+<Note>
+  A small business management application designed for local retail stores to streamline their operations. The application features an Angular frontend and a Flask backend with a MySQL database. Store managers can sign up for an account, log in using email and password authentication, and manage their inventory, sales, and employee schedules. The application supports real-time updates and notifications, ensuring managers are always aware of low stock levels and sales trends. Data is encrypted both in transit and at rest, and the system includes role-based access control to restrict sensitive information to authorized personnel. Additionally, the application integrates with popular payment gateways like Stripe and PayPal to process transactions securely.
+</Note>
+
+## Real-World Examples from Case Studies
+
+### Example 1: Visual Sensor Network
+
+From `case_study_2.md`, a Visual Sensor Network description includes:
+
+```markdown
+The system is a Visual Sensor Network (VSN), which is a specialized 
+type of sensor network designed for capturing, processing, and 
+transmitting visual data (images/videos) across a distributed network 
+of camera nodes.
+
+Key Components:
+- Visual Sensor Nodes: equipped with cameras, capture visual data, 
+  process locally, and communicate with other nodes
+- Operating System: Linux-based system managing hardware resources
+- Business Application: Handles image processing, object detection, 
+  and data aggregation
+- Middleware: Uses MQTT or ROS for distributed processing
+- Network Infrastructure: Includes wired and wireless connections
+- External Interfaces: Internet connectivity for remote monitoring
+```
+
+### Example 2: 5G Core Slicing
+
+From `case_study_3.md`, a telecommunications system description:
+
+```markdown
+A 5G core slicing implementation that enables network operators to 
+create isolated, virtualized segments (or slices) of the 5G network, 
+each tailored to specific use cases.
+
+Key Components:
+- Network Slices: Independent virtual segments optimized for different 
+  performance requirements
+- Network Functions (NFs): Virtualized components performing user plane 
+  and control plane functions
+- Virtual Network Functions (VNFs): Virtualized instances operating on 
+  hypervisors or containers
+- Trust Boundaries: Critical for maintaining security in multi-tenant 
+  environment
+- Orchestration: Managed by NFVO controlling lifecycle and resource 
+  allocation
+```
+
+## Using the Image Upload Feature
+
+AegisShield supports AI-powered analysis of architecture diagrams (available for OpenAI GPT-4o and GPT-5 models).
+
+<Steps>
+  <Step title="Prepare Your Diagram">
+    Create an architecture diagram showing:
+    - System components
+    - Data flows between components
+    - Trust boundaries
+    - External interfaces
+    
+    **Supported formats:** PNG, JPEG, JPG (max 10MB)
+  </Step>
+
+  <Step title="Upload the Image">
+    In Step 1, click "Upload an image of your application (optional)" and select your diagram.
+    
+    AegisShield will analyze the diagram using OpenAI's vision model (`step1_description.py:196`).
+  </Step>
+
+  <Step title="Review AI Analysis">
+    The AI will generate a description focusing on:
+    - Key components and their interactions
+    - Technologies visible in the diagram
+    - Data flows and communication patterns
+    
+    The generated description appears in the text area automatically.
+  </Step>
+
+  <Step title="Enhance the Description">
+    Add details that aren't visible in the diagram:
+    - Authentication mechanisms
+    - Data sensitivity levels
+    - Security controls already in place
+    - Compliance requirements
+  </Step>
+</Steps>
+
+<Tip>
+  The image analysis prompt (`step1_description.py:206-226`) instructs the AI to act as a Senior Solution Architect explaining the diagram to a Security Architect. The analysis focuses only on what's directly visible in the diagram without speculation.
+</Tip>
+
+## Validation Requirements
+
+AegisShield validates your description before proceeding:
+
+- **Minimum length:** 50 characters (excluding whitespace)
+- **Character count:** Displayed as you type
+- **Completeness check:** Ensure all required information is included
+
+From `step1_description.py:142-145`, the validation ensures meaningful input:
+
+```python
+if not description or len(description.strip()) < 50:
+    return False, "Description must be at least 50 characters"
+```
+
+## Common Mistakes to Avoid
+
+<Warning>
+  **Don't be too vague:** "A web application for managing data" doesn't provide enough context.
+  
+  **Better:** "A web-based inventory management system for retail stores using React frontend and Node.js backend with MongoDB, handling product catalogs, stock levels, and supplier information."
+</Warning>
+
+<Warning>
+  **Don't omit security controls:** Mention existing security measures so AegisShield can focus on additional threats.
+  
+  **Include:** "Users authenticate via OAuth2, API calls are rate-limited, and all data is encrypted at rest using AES-256."
+</Warning>
+
+<Warning>
+  **Don't forget external boundaries:** Identify where your system connects to external services.
+  
+  **Include:** "The system integrates with Stripe for payments, SendGrid for email notifications, and AWS S3 for file storage."
+</Warning>
+
+## Why This Matters
+
+From `step1_description.py:246-256`, AegisShield uses your description to:
+
+1. **Identify specific context and scope** - Understanding your unique threat landscape
+2. **Tailor the threat model** - Addressing particular functionalities and features
+3. **Consider all relevant threats** - Including those specific to your use case and environment
+4. **Search vulnerability databases** - NVD and AlienVault OTX based on your technologies
+5. **Map to MITRE ATT&CK** - Identifying relevant tactics, techniques, and procedures
+
+<Note>
+  The more detailed and accurate your description, the more precise and comprehensive the threat model will be. AegisShield pulls information from the National Vulnerability Database (NVD) and AlienVault OTX, then maps threats to the MITRE ATT&CK framework.
+</Note>
+
+## Next Steps
+
+After completing your application description:
+
+1. **Review for completeness** - Have you covered all major components?
+2. **Check character count** - Aim for a comprehensive description (200+ characters recommended)
+3. **Click Next** - Move to Step 2 to specify your technology stack
+4. **Save the description** - It will be used throughout the threat modeling process
+
+Your description feeds into the threat model generation prompt (`threat_model.py:116-203`), where it's combined with technology details, NVD vulnerabilities, and industry-specific threat intelligence to generate comprehensive STRIDE-based threats.

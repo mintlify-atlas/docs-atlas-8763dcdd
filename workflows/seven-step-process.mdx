@@ -1,0 +1,406 @@
+---
+title: "7-Step Threat Modeling Process"
+description: "Complete walkthrough of AegisShield's guided threat modeling workflow from description to PDF report"
+---
+
+# 7-Step Threat Modeling Process
+
+AegisShield guides you through a comprehensive 7-step process to create professional threat models. Each step builds on the previous one, culminating in a complete PDF report.
+
+## Overview
+
+The workflow is implemented in `main.py` with seven tabs, each handling a specific phase of threat modeling.
+
+```python main.py:123-131
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    "Step 1: Description",
+    "Step 2: Technology",
+    "Step 3: Threat Model",
+    "Step 4: Mitigations",
+    "Step 5: DREAD Risk Assessment",
+    "Step 6: Test Cases",
+    "Step 7: Generate PDF Report"
+])
+```
+
+## Complete Workflow
+
+<Steps>
+  <Step title="Step 1: Application Description">
+    **Purpose:** Describe your application or upload an architecture diagram.
+    
+    **Implementation:** `tabs/step1_description.py`
+    
+    **Inputs:**
+    - Application description (manual text input)
+    - Architecture diagram (optional upload)
+    - Application type (21 options)
+    - Industry sector (32 options)
+    - Authentication methods
+    - Internet facing (Yes/No)
+    - Sensitive data classification
+    - Technical ability (Low/Medium/High)
+    
+    **Outputs:**
+    - `app_input` - Application description
+    - `app_type` - Selected application type
+    - `industry_sector` - Selected industry
+    - `authentication` - Auth methods
+    - `internet_facing` - Exposure level
+    - `sensitive_data` - Data classification
+    
+    ```python Example from step1_description.py
+    app_types = [
+        "Web application",
+        "Mobile application",
+        "Desktop application",
+        "Cloud application",
+        "IoT application",
+        "ICS or SCADA System",
+        "AI/ML Systems",
+        # ... 14 more types
+    ]
+    ```
+    
+    <Tip>
+    Upload architecture diagrams when available - GPT-4 Vision can analyze them to generate detailed descriptions automatically.
+    </Tip>
+  </Step>
+  
+  <Step title="Step 2: Technology Selection">
+    **Purpose:** Select the technology stack to enable vulnerability scanning.
+    
+    **Implementation:** `tabs/step2_technology.py`
+    
+    **Inputs:**
+    - Databases (8 options with versions)
+    - Operating systems (13 options with versions)
+    - Programming languages (11 options with versions)
+    - Web frameworks (8 options with versions)
+    
+    **Technology Options:**
+    ```python From step2_technology.py:50-72
+    db_options = [
+        "MySQL", "PostgreSQL", "MongoDB", "Microsoft SQL Server",
+        "Oracle Database", "SQLite", "Redis", "MariaDB"
+    ]
+    
+    os_options = [
+        "Microsoft Windows Server", "Ubuntu", "Red Hat Enterprise Linux",
+        "Debian", "CentOS", "macOS", "Android", "iOS",
+        "Windows 10/11", "Amazon Linux", "SUSE Linux", "FreeBSD", "OpenBSD"
+    ]
+    
+    language_options = [
+        "Python", "Java", "JavaScript/Node.js", "C#/.NET",
+        "PHP", "Ruby", "Go", "C/C++", "Swift", "Kotlin", "Rust"
+    ]
+    
+    framework_options = [
+        "Django", "React", "Angular", "Vue.js",
+        "Spring Boot", "Express.js", "Flask", "Ruby on Rails"
+    ]
+    ```
+    
+    **Outputs:**
+    - CPE names for NVD searches
+    - Technology versions for precise CVE matching
+    
+    <Note>
+    Accurate version selection is critical. AegisShield uses CPE (Common Platform Enumeration) identifiers to match exact versions against the NVD database.
+    </Note>
+  </Step>
+  
+  <Step title="Step 3: Generate Threat Model">
+    **Purpose:** Generate STRIDE-based threats integrated with MITRE ATT&CK.
+    
+    **Implementation:** `tabs/step3_threat_model.py`
+    
+    **Process:**
+    1. Search NVD for vulnerabilities in selected technologies
+    2. Fetch AlienVault OTX threat intelligence for industry
+    3. Create comprehensive threat modeling prompt
+    4. Call GPT-4o to generate threats (3 per STRIDE category)
+    5. Load MITRE ATT&CK STIX data
+    6. Map threats to specific ATT&CK techniques
+    
+    **Outputs:**
+    - 18 STRIDE threats with scenarios, impacts, and assumptions
+    - MITRE ATT&CK technique mappings (Technique IDs)
+    - NVD CVE data for technology stack
+    - AlienVault OTX pulse data
+    - Improvement suggestions for better threat models
+    
+    **Example Output:**
+    | Threat Type | Scenario | Potential Impact | MITRE Technique |
+    |-------------|----------|------------------|------------------|
+    | Spoofing | Attacker creates fake OAuth2 provider | Unauthorized access to user accounts | T1566 (Phishing) |
+    | Tampering | SQL injection via search parameter | Database modification, data theft | T1190 (Exploit Public-Facing Application) |
+    
+    <Warning>
+    This step makes multiple API calls and can take 2-5 minutes depending on the complexity of your application.
+    </Warning>
+  </Step>
+  
+  <Step title="Step 4: Generate Mitigations">
+    **Purpose:** Create mitigation strategies for each identified threat.
+    
+    **Implementation:** `tabs/step4_mitigations.py`
+    
+    **Process:**
+    1. Format threat model with MITRE mappings and NVD CVEs
+    2. Create mitigation prompt
+    3. Call GPT-4o to generate specific mitigations
+    
+    **Output Format:**
+    | Threat Type | Scenario | Suggested Mitigation(s) |
+    |-------------|----------|-------------------------|
+    | Spoofing | Fake OAuth2 provider | Implement OAuth2 provider allowlist, Use HTTPS for all OAuth flows, Validate redirect URIs against whitelist |
+    
+    **Example from step4_mitigations.py:**
+    ```python
+    from mitigations import create_mitigations_prompt, get_mitigations
+    
+    prompt = create_mitigations_prompt(
+        threats=threat_markdown,
+        mitre_mapping=mitre_markdown,
+        nvd_vulnerabilities=nvd_data
+    )
+    
+    mitigations = get_mitigations(api_key, model_name, prompt)
+    ```
+  </Step>
+  
+  <Step title="Step 5: DREAD Risk Assessment">
+    **Purpose:** Assign quantitative risk scores to prioritize threats.
+    
+    **Implementation:** `tabs/step5_dread_assessment.py`
+    
+    **Process:**
+    1. Create DREAD assessment prompt with threats, MITRE, and NVD data
+    2. Call GPT-4o to score each threat on 5 dimensions (1-10 scale)
+    3. Calculate average risk score
+    4. Display sorted by risk score
+    
+    **DREAD Dimensions:**
+    - **D**amage Potential (1-10)
+    - **R**eproducibility (1-10)
+    - **E**xploitability (1-10)
+    - **A**ffected Users (1-10)
+    - **D**iscoverability (1-10)
+    
+    **Output:**
+    | Threat | Damage | Reprod. | Exploit. | Users | Discov. | Risk Score |
+    |--------|--------|---------|----------|-------|---------|------------|
+    | SQL Injection | 9 | 8 | 7 | 10 | 9 | 8.60 |
+    | OAuth Spoofing | 8 | 6 | 5 | 9 | 7 | 7.00 |
+    
+    <Tip>
+    Focus mitigation efforts on threats with risk scores ≥ 7.0 first.
+    </Tip>
+  </Step>
+  
+  <Step title="Step 6: Generate Test Cases">
+    **Purpose:** Create Gherkin-formatted security test cases.
+    
+    **Implementation:** `tabs/step6_test_cases.py`
+    
+    **Process:**
+    1. Create test cases prompt from threat model
+    2. Call GPT-4o to generate Gherkin scenarios
+    3. Display formatted test cases
+    
+    **Output:**
+    ```gherkin
+    ### Test Case 1: Prevent SQL Injection
+    
+    ```gherkin
+    Feature: Database Query Security
+    
+      Scenario: Prevent SQL injection in search functionality
+        Given the application has a search feature
+        When a user enters SQL injection payload "'; DROP TABLE users; --"
+        Then the query should be parameterized
+        And the malicious input should be treated as literal text
+        And no database tables should be modified
+    ```
+    ```
+    
+    <Note>
+    Test cases are ready to implement in pytest-bdd, Cucumber, or Behave frameworks.
+    </Note>
+  </Step>
+  
+  <Step title="Step 7: Generate PDF Report">
+    **Purpose:** Export comprehensive PDF documentation.
+    
+    **Implementation:** `tabs/step7_generate_pdf.py`
+    
+    **Report Contents:**
+    1. **Executive Summary**
+       - Application overview
+       - Key findings
+       - Risk summary
+    
+    2. **Application Description**
+       - Detailed description
+       - Technology stack
+       - Security posture
+    
+    3. **Threat Model**
+       - All 18 STRIDE threats
+       - Assumptions and impacts
+       - MITRE ATT&CK mappings
+    
+    4. **MITRE ATT&CK Analysis**
+       - Technique details
+       - Attack pattern IDs
+       - Links to ATT&CK framework
+    
+    5. **Vulnerability Assessment**
+       - NVD CVEs for technology stack
+       - CVSS scores
+       - Remediation guidance
+    
+    6. **Threat Intelligence**
+       - AlienVault OTX pulses
+       - Industry-specific threats
+    
+    7. **Risk Assessment**
+       - DREAD scores
+       - Prioritized threat list
+    
+    8. **Mitigations**
+       - Specific mitigation strategies
+       - Implementation guidance
+    
+    9. **Security Test Cases**
+       - Gherkin scenarios
+       - Test implementation guidance
+    
+    10. **Attack Trees**
+        - Visual attack path diagrams
+    
+    **Technical Details:**
+    ```python From step7_generate_pdf.py
+    import markdown2
+    from xhtml2pdf import pisa
+    
+    # Convert Markdown to HTML
+    html = markdown2.markdown(
+        combined_markdown,
+        extras=["tables", "fenced-code-blocks"]
+    )
+    
+    # Generate PDF
+    pisa.CreatePDF(html, dest=output_file)
+    ```
+    
+    <Warning>
+    PDF generation requires Cairo and Pango libraries. See [Installation](/installation) for setup instructions.
+    </Warning>
+  </Step>
+</Steps>
+
+## Session State Management
+
+AegisShield tracks progress using Streamlit session state:
+
+```python main.py:38-42
+for step in range(1, 8):
+    key = f"step{step}_completed"
+    if key not in st.session_state:
+        st.session_state[key] = False
+```
+
+**Key Session Variables:**
+- `app_input` - Application description
+- `threat_model` - Generated threats
+- `mitre_techniques` - ATT&CK mappings
+- `dread_assessment` - Risk scores
+- `test_cases` - Gherkin tests
+- `attack_tree` - Mermaid diagram
+
+## Error Handling
+
+Each step has centralized error handling:
+
+```python From main.py:92-109
+def render_tab(tab, render_func, error_key, **kwargs):
+    try:
+        with tab:
+            render_func(**kwargs)
+    except Exception as e:
+        handle_exception(e, ERROR_MESSAGES[error_key])
+
+# Usage
+render_tab(tab1, step1_description.render, 'step1', **model_params)
+```
+
+## Time Estimates
+
+Typical completion times:
+
+| Step | Time | Notes |
+|------|------|-------|
+| Step 1 | 2-5 min | Longer with image analysis |
+| Step 2 | 1-2 min | Technology selection |
+| Step 3 | 2-5 min | Multiple API calls (NVD, OTX, OpenAI, MITRE) |
+| Step 4 | 1-2 min | Single OpenAI call |
+| Step 5 | 1-2 min | Single OpenAI call |
+| Step 6 | 1-2 min | Single OpenAI call |
+| Step 7 | 1-2 min | PDF generation |
+| **Total** | **10-20 min** | For complete threat model |
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Complete Steps in Order" icon="arrow-down-1-9">
+    Each step depends on data from previous steps. Don't skip ahead.
+  </Card>
+  
+  <Card title="Save Incrementally" icon="floppy-disk">
+    Download intermediate outputs (threat model, test cases) as you go. Don't wait until the end.
+  </Card>
+  
+  <Card title="Detailed Descriptions" icon="file-lines">
+    More detail in Step 1 leads to more accurate threats. Include architecture, data flows, and security controls.
+  </Card>
+  
+  <Card title="Accurate Technology" icon="microchip">
+    Precise version selection in Step 2 enables accurate CVE identification.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<Accordion title="Session State Lost" icon="triangle-exclamation">
+  **Symptom:** Data from previous steps disappears.
+  
+  **Cause:** Browser refresh or Streamlit reconnection.
+  
+  **Solution:** Don't refresh the browser. If you must, restart from Step 1.
+</Accordion>
+
+<Accordion title="API Rate Limits" icon="clock">
+  **Symptom:** "Rate limit exceeded" errors.
+  
+  **Cause:** Too many API calls too quickly.
+  
+  **Solution:** Wait 60 seconds and retry. Consider upgrading OpenAI API tier for higher limits.
+</Accordion>
+
+<Accordion title="Incomplete Threat Model" icon="list-check">
+  **Symptom:** Fewer than 18 threats generated.
+  
+  **Cause:** Insufficient application description or API timeout.
+  
+  **Solution:** Provide more detail in Step 1. Retry Step 3.
+</Accordion>
+
+## Related Guides
+
+- [Application Description](/guides/application-description) - Tips for effective descriptions
+- [Technology Selection](/guides/technology-selection) - Choosing the right technologies
+- [Interpreting Results](/guides/interpreting-results) - Understanding threat model output
+- [PDF Reports](/workflows/pdf-reports) - Customizing report generation

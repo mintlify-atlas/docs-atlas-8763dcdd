@@ -1,0 +1,707 @@
+---
+title: 'MITRE ATT&CK Integration'
+description: 'Map threats to MITRE ATT&CK tactics and techniques using local STIX data'
+icon: 'diagram-project'
+---
+
+## Overview
+
+AegisShield integrates with **MITRE ATT&CK®**, the globally-accessible knowledge base of adversary tactics and techniques. Unlike the NVD and OTX integrations which use external APIs, the MITRE ATT&CK integration loads STIX 2.0 data from local JSON files, enabling offline threat analysis and technique mapping.
+
+### What MITRE ATT&CK Provides
+
+MITRE ATT&CK is a comprehensive framework that provides:
+
+- **Attack Patterns**: Detailed descriptions of adversary techniques
+- **Tactics**: High-level adversary objectives (Initial Access, Execution, Persistence, etc.)
+- **Techniques**: Specific methods used to achieve tactical goals (T-codes like T1190)
+- **Sub-techniques**: Granular variations of techniques
+- **Platform Coverage**: Windows, Linux, macOS, Cloud, Mobile, ICS/SCADA
+- **Adversary Mapping**: Links techniques to known threat actor groups
+
+### Matrix Coverage
+
+AegisShield includes three MITRE ATT&CK matrices:
+
+<CardGroup cols={3}>
+  <Card title="Enterprise" icon="building">
+    Windows, Linux, macOS, Cloud, Network platforms
+  </Card>
+  
+  <Card title="Mobile" icon="mobile">
+    Android and iOS platforms
+  </Card>
+  
+  <Card title="ICS" icon="industry">
+    Industrial Control Systems and SCADA
+  </Card>
+</CardGroup>
+
+## Data Architecture
+
+### STIX Data Files
+
+The integration uses three local STIX 2.0 JSON files:
+
+```bash
+MITRE_ATTACK_DATA/
+├── enterprise-attack.json    # Enterprise matrix (most common)
+├── mobile-attack.json        # Mobile platforms
+└── ics-attack.json          # Industrial control systems
+```
+
+These files contain structured threat intelligence in STIX format:
+
+```json
+{
+  "type": "bundle",
+  "id": "bundle--...",
+  "objects": [
+    {
+      "type": "attack-pattern",
+      "id": "attack-pattern--...",
+      "name": "Exploit Public-Facing Application",
+      "description": "Adversaries may attempt to take advantage...",
+      "external_references": [
+        {
+          "source_name": "mitre-attack",
+          "external_id": "T1190"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Application Type Mapping
+
+The integration automatically selects the appropriate matrix based on application type:
+
+```python mitre_attack.py
+MOBILE_APP_TYPES = [
+    "Mobile application",
+    "5G/Wireless System",
+]
+
+ENTERPRISE_APP_TYPES = [
+    "Desktop application",
+    "Web application",
+    "SaaS application",
+    "Cloud application",
+    "Network application",
+    "AI/ML Systems",
+    "Blockchain and Cryptocurrency Systems",
+    "Messaging application",
+    "HPC System",
+    "Drone as a Service (DaaS) Application",
+]
+
+ICS_APP_TYPES = [
+    "ICS or SCADA System",
+    "Smart Grid Systems",
+    "Industrial Internet of Things (IIoT)",
+    "Cyber-Physical System (CPS)",
+    "Vehicular Fog Computing (VFC)",
+    "Embedded systems",
+    "IoT application",
+    "Fog Computing",
+    "Wearable Devices",
+]
+```
+
+## Loading MITRE ATT&CK Data
+
+### Basic Data Loading
+
+<CodeGroup>
+
+```python Enterprise Applications
+from mitre_attack import fetch_mitre_attack_data
+
+# Load enterprise attack data
+stix_data = fetch_mitre_attack_data("Web application")
+```
+
+```python Mobile Applications
+from mitre_attack import fetch_mitre_attack_data
+
+# Load mobile + enterprise data (combined)
+stix_data = fetch_mitre_attack_data("Mobile application")
+# Returns both mobile-attack.json and enterprise-attack.json
+```
+
+```python ICS/SCADA Systems
+from mitre_attack import fetch_mitre_attack_data
+
+# Load ICS + enterprise data (combined)
+stix_data = fetch_mitre_attack_data("ICS or SCADA System")
+# Returns both ics-attack.json and enterprise-attack.json
+```
+
+</CodeGroup>
+
+### Implementation Details
+
+The data loading function intelligently combines matrices:
+
+```python mitre_attack.py
+def fetch_mitre_attack_data(app_type):
+    logger.info(f"Fetching MITRE ATT&CK data for app_type: {app_type}")
+    
+    try:
+        if app_type in MOBILE_APP_TYPES:
+            with open("./MITRE_ATTACK_DATA/mobile-attack.json") as mobile_file, open(
+                "./MITRE_ATTACK_DATA/enterprise-attack.json"
+            ) as enterprise_file:
+                mobile_data = json.load(mobile_file)
+                enterprise_data = json.load(enterprise_file)
+                stix_data = enterprise_data
+                stix_data["objects"].extend(mobile_data["objects"])
+                logger.info("Successfully loaded mobile and enterprise attack data")
+        
+        elif app_type in ENTERPRISE_APP_TYPES:
+            with open("./MITRE_ATTACK_DATA/enterprise-attack.json") as file:
+                stix_data = json.load(file)
+                logger.info("Successfully loaded enterprise attack data")
+        
+        elif app_type in ICS_APP_TYPES:
+            with open("./MITRE_ATTACK_DATA/ics-attack.json") as ics_file, open(
+                "./MITRE_ATTACK_DATA/enterprise-attack.json"
+            ) as enterprise_file:
+                ics_data = json.load(ics_file)
+                enterprise_data = json.load(enterprise_file)
+                stix_data = enterprise_data
+                stix_data["objects"].extend(ics_data["objects"])
+                logger.info("Successfully loaded ICS and enterprise attack data")
+        
+        else:
+            # Default to enterprise for unknown types
+            with open("./MITRE_ATTACK_DATA/enterprise-attack.json") as file:
+                stix_data = json.load(file)
+                logger.info("Successfully loaded enterprise attack data")
+        
+        return stix_data
+    
+    except FileNotFoundError as e:
+        handle_exception(e, "Required MITRE ATT&CK data file not found")
+    except json.JSONDecodeError as e:
+        handle_exception(e, "Invalid JSON format in MITRE ATT&CK data file")
+```
+
+<Note>
+  Mobile and ICS applications automatically include enterprise techniques, providing comprehensive coverage.
+</Note>
+
+## Mapping Attack Patterns to Techniques
+
+### Pattern to Technique Resolution
+
+STIX uses internal `attack-pattern` IDs, but users need human-readable technique IDs (T-codes):
+
+```python mitre_attack.py
+def map_attack_pattern_to_technique(stix_data):
+    """Map attack pattern IDs to MITRE ATT&CK technique IDs (T####)."""
+    logger.info("Starting attack pattern to technique mapping")
+    attack_pattern_to_technique = {}
+    
+    try:
+        if not stix_data or 'objects' not in stix_data:
+            logger.warning("No objects found in STIX data")
+            return attack_pattern_to_technique
+        
+        # Iterate through each object in the STIX data
+        for obj in stix_data.get('objects', []):
+            if obj.get('type') == 'attack-pattern':
+                attack_pattern_id = obj.get('id')
+                if not attack_pattern_id:
+                    logger.warning("Found attack pattern object without ID")
+                    continue
+                
+                external_refs = obj.get('external_references', [])
+                
+                # Loop through external references to find the MITRE ATT&CK technique ID
+                for ref in external_refs:
+                    if ref.get('source_name') == 'mitre-attack' and 'external_id' in ref:
+                        technique_id = ref['external_id']  # Technique ID (T####)
+                        attack_pattern_to_technique[attack_pattern_id] = technique_id
+                        break
+        
+        logger.info(f"Successfully mapped {len(attack_pattern_to_technique)} attack patterns to techniques")
+        return attack_pattern_to_technique
+    
+    except Exception as e:
+        handle_exception(e, "Error mapping attack patterns to techniques")
+```
+
+<Accordion title="Example Mapping">
+  Internal STIX ID → Human-readable Technique ID
+  
+  ```python
+  {
+    "attack-pattern--3f886f2a-874f-4333-b794-aa6075009b1c": "T1190",
+    "attack-pattern--d1fcf083-a721-4223-aedf-bf8960798d62": "T1071",
+    "attack-pattern--355be19c-ffc9-46d5-8d50-d6a036c675b6": "T1059"
+  }
+  ```
+</Accordion>
+
+## Processing Threats with MITRE ATT&CK
+
+### Keyword-Based Technique Matching
+
+The integration matches threats to techniques using keywords:
+
+```python mitre_attack.py
+for threat in threat_model:
+    relevant_techniques = []
+    keywords = threat.get("MITRE ATT&CK Keywords", [])
+    
+    if not keywords:
+        processed_data.append({
+            "threat": threat,
+            "mitre_techniques": [],
+        })
+        continue
+    
+    # Match relevant attack patterns based on keywords
+    for obj in stix_data["objects"]:
+        if obj["type"] == "attack-pattern":
+            name = obj.get("name", "").lower()
+            description = obj.get("description", "").lower()
+            
+            # Check if any keyword matches the attack pattern name or description
+            for keyword in keywords:
+                if keyword.lower() in name or keyword.lower() in description:
+                    relevant_techniques.append({
+                        "name": obj["name"],
+                        "description": obj.get("description", "No description available"),
+                        "id": obj["id"],
+                    })
+                    break
+    
+    # Keep the top N relevant techniques
+    relevant_techniques = relevant_techniques[:MAX_TECHNIQUES]
+```
+
+### AI-Powered Technique Selection
+
+Once candidate techniques are identified, OpenAI selects the most relevant:
+
+```python mitre_attack.py
+# Configuration constants
+MAX_TECHNIQUES = 25  # Maximum number of techniques to consider per threat
+RATE_LIMIT_SLEEP_MIN = 0  # Minimum seconds to sleep between API calls
+RATE_LIMIT_SLEEP_MAX = 5  # Maximum seconds to sleep between API calls
+
+# Create prompt and get the top technique using OpenAI
+prompt = create_mitre_prompt(app_details, threat, relevant_techniques)
+random_integer = random.randint(RATE_LIMIT_SLEEP_MIN, RATE_LIMIT_SLEEP_MAX)
+time.sleep(random_integer)  # Alleviate OpenAI API rate limiting
+
+top_1_id = get_relevant_techniques(prompt, openai_api_key)
+
+# Retrieve the corresponding MITRE ATT&CK Technique ID
+technique_id = attack_pattern_to_technique.get(top_1_id[0], "N/A")
+```
+
+### Creating Context-Aware Prompts
+
+The prompt includes application context and threat details:
+
+```python mitre_attack.py
+def create_mitre_prompt(app_details, threat, techniques):
+    technique_descriptions = [
+        {"id": tech["id"], "name": tech["name"], "description": tech["description"]} 
+        for tech in techniques
+    ]
+    
+    prompt = f"""
+You are to respond in a very specific format. Do not include any additional text, explanations, or context. Only output the JSON array as specified below.
+
+Act as a cybersecurity expert in the {app_details['industry_sector']} sector with more than 20 years of experience using the STRIDE threat modeling methodology.
+Your task is to analyze the following threat scenario and select the single most relevant MITRE ATT&CK attack pattern from the provided list of 25.
+
+APPLICATION TYPE: {app_details['app_type']}
+INDUSTRY SECTOR: {app_details['industry_sector']}
+AUTHENTICATION METHODS: {app_details['authentication']}
+INTERNET FACING: {app_details['internet_facing']}
+SENSITIVE DATA: {app_details['sensitive_data']}
+APPLICATION DESCRIPTION: {app_details['app_input']}
+
+Threat Scenario:
+{json.dumps(threat, indent=2)}
+
+MITRE ATT&CK Techniques:
+{json.dumps(technique_descriptions, indent=2)}
+
+Your response should **ONLY** include the single most relevant MITRE ATT&CK Attack Pattern ID from the above MITRE ATT&CK Techniques, in a JSON array format like this:
+
+["attack-pattern--xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"]
+
+If none of the provided techniques are a perfect match, select the closest one. If there truly is no relevant match, respond with ["attack-pattern--00000000-0000-0000-0000-000000000000"].
+"""
+    return prompt
+```
+
+<Accordion title="Example Prompt">
+```
+Act as a cybersecurity expert in the Financial Services sector with more than 20 years of experience using the STRIDE threat modeling methodology.
+Your task is to analyze the following threat scenario and select the single most relevant MITRE ATT&CK attack pattern from the provided list of 25.
+
+APPLICATION TYPE: Web application
+INDUSTRY SECTOR: Financial Services
+AUTHENTICATION METHODS: OAuth 2.0, MFA
+INTERNET FACING: Yes
+SENSITIVE DATA: Customer PII, Financial Records
+APPLICATION DESCRIPTION: Online banking platform with account management and transaction capabilities
+
+Threat Scenario:
+{
+  "Threat": "SQL Injection",
+  "STRIDE Category": "Tampering",
+  "MITRE ATT&CK Keywords": ["injection", "database", "sql"]
+}
+
+MITRE ATT&CK Techniques:
+[
+  {
+    "id": "attack-pattern--...",
+    "name": "Exploit Public-Facing Application",
+    "description": "Adversaries may attempt to exploit weaknesses in Internet-facing applications..."
+  },
+  ...
+]
+```
+</Accordion>
+
+## AI Integration
+
+### OpenAI Technique Selection
+
+```python mitre_attack.py
+def get_relevant_techniques(prompt, openai_api_key):
+    """Generate relevant MITRE ATT&CK techniques using OpenAI's API."""
+    client = OpenAI(api_key=openai_api_key)
+    
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a cybersecurity expert helping to identify the most relevant MITRE ATT&CK attack patterns.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+    )
+    
+    response_content = response.choices[0].message.content.strip()
+    
+    # Clean the response to remove any markdown formatting
+    if response_content.startswith("```json"):
+        response_content = response_content[7:]
+    if response_content.endswith("```"):
+        response_content = response_content[:-3]
+    
+    try:
+        top_1_id = json.loads(response_content)
+    except json.JSONDecodeError:
+        print(f"Error parsing JSON from response: {response_content}")
+        top_1_id = []
+    
+    # Ensure the result is a list with exactly 1 ID
+    if isinstance(top_1_id, list):
+        if len(top_1_id) == 1:
+            return top_1_id
+        elif len(top_1_id) == 0:
+            return ["attack-pattern--00000000-0000-0000-0000-000000000000"]
+    
+    return []
+```
+
+### Rate Limiting Strategy
+
+To avoid OpenAI API rate limits:
+
+```python mitre_attack.py
+import random
+import time
+
+RATE_LIMIT_SLEEP_MIN = 0
+RATE_LIMIT_SLEEP_MAX = 5
+
+for threat in threat_model:
+    # ... process threat ...
+    random_integer = random.randint(RATE_LIMIT_SLEEP_MIN, RATE_LIMIT_SLEEP_MAX)
+    time.sleep(random_integer)
+    top_1_id = get_relevant_techniques(prompt, openai_api_key)
+```
+
+<Warning>
+  Processing large threat models may consume significant OpenAI API credits. Monitor usage carefully.
+</Warning>
+
+## Complete Processing Example
+
+<CodeGroup>
+
+```python Full Workflow
+from mitre_attack import (
+    fetch_mitre_attack_data,
+    process_mitre_attack_data
+)
+
+# Define application details
+app_details = {
+    "app_type": "Web application",
+    "industry_sector": "Healthcare",
+    "authentication": "SAML 2.0, MFA",
+    "internet_facing": "Yes",
+    "sensitive_data": "PHI, PII",
+    "app_input": "Patient portal for managing medical records"
+}
+
+# Define threat model
+threat_model = [
+    {
+        "Threat": "Unauthorized access to patient records",
+        "STRIDE Category": "Information Disclosure",
+        "MITRE ATT&CK Keywords": ["credential", "access", "authentication"]
+    },
+    {
+        "Threat": "Ransomware attack on database",
+        "STRIDE Category": "Denial of Service",
+        "MITRE ATT&CK Keywords": ["ransomware", "encryption", "data destruction"]
+    }
+]
+
+# Load MITRE ATT&CK data
+stix_data = fetch_mitre_attack_data(app_details["app_type"])
+
+# Process threats and map to techniques
+results = process_mitre_attack_data(
+    stix_data=stix_data,
+    threat_model=threat_model,
+    app_details=app_details,
+    openai_api_key="your_openai_api_key"
+)
+
+# Results structure
+for result in results:
+    threat = result["threat"]
+    techniques = result["mitre_techniques"]
+    
+    print(f"Threat: {threat['Threat']}")
+    for tech in techniques:
+        print(f"  Technique: {tech['technique_id']} - {tech['name']}")
+        print(f"  Description: {tech['description']}")
+```
+
+```python Output Format
+[
+    {
+        "threat": {
+            "Threat": "Unauthorized access to patient records",
+            "STRIDE Category": "Information Disclosure",
+            "MITRE ATT&CK Keywords": ["credential", "access", "authentication"]
+        },
+        "mitre_techniques": [
+            {
+                "name": "Valid Accounts",
+                "description": "Adversaries may obtain and abuse credentials...",
+                "id": "attack-pattern--b17a1a56-e99c-403c-8948-561df0cffe81",
+                "technique_id": "T1078"
+            }
+        ]
+    },
+    {
+        "threat": {
+            "Threat": "Ransomware attack on database",
+            "STRIDE Category": "Denial of Service",
+            "MITRE ATT&CK Keywords": ["ransomware", "encryption", "data destruction"]
+        },
+        "mitre_techniques": [
+            {
+                "name": "Data Encrypted for Impact",
+                "description": "Adversaries may encrypt data on target systems...",
+                "id": "attack-pattern--b80d107d-fa0d-4b60-9684-b0433e8bdba0",
+                "technique_id": "T1486"
+            }
+        ]
+    }
+]
+```
+
+</CodeGroup>
+
+## Error Handling
+
+### File Loading Errors
+
+```python mitre_attack.py
+try:
+    with open("./MITRE_ATTACK_DATA/enterprise-attack.json") as file:
+        stix_data = json.load(file)
+except FileNotFoundError as e:
+    handle_exception(e, "Required MITRE ATT&CK data file not found")
+except json.JSONDecodeError as e:
+    handle_exception(e, "Invalid JSON format in MITRE ATT&CK data file")
+```
+
+### Processing Errors
+
+```python mitre_attack.py
+for threat in threat_model:
+    try:
+        # Process threat...
+        processed_data.append({
+            "threat": threat,
+            "mitre_techniques": top_1_technique,
+        })
+    except Exception as e:
+        handle_exception(e, "Error processing threat technique selection")
+        processed_data.append({
+            "threat": threat,
+            "mitre_techniques": [],  # Empty on error
+        })
+```
+
+## Setup and Configuration
+
+### Prerequisites
+
+1. **MITRE ATT&CK Data Files**: Included in the `MITRE_ATTACK_DATA/` directory
+2. **OpenAI API Key**: Required for AI-powered technique selection
+3. **Python Dependencies**:
+   ```bash
+   pip install openai
+   ```
+
+### Data File Management
+
+<Steps>
+  <Step title="Verify Data Files">
+    Ensure all three STIX files are present:
+    ```bash
+    ls MITRE_ATTACK_DATA/
+    # Should show:
+    # enterprise-attack.json
+    # mobile-attack.json
+    # ics-attack.json
+    ```
+  </Step>
+  
+  <Step title="Update Data Files">
+    Download the latest MITRE ATT&CK data from [GitHub](https://github.com/mitre-attack/attack-stix-data):
+    ```bash
+    wget https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json
+    ```
+  </Step>
+  
+  <Step title="Configure OpenAI">
+    Set your OpenAI API key:
+    ```bash
+    export OPENAI_API_KEY="your_openai_api_key"
+    ```
+  </Step>
+</Steps>
+
+### Updating MITRE ATT&CK Data
+
+MITRE releases updated matrices periodically. To update:
+
+1. Visit [MITRE ATT&CK STIX Data](https://github.com/mitre-attack/attack-stix-data)
+2. Download the latest JSON files for your required matrices
+3. Replace files in `MITRE_ATTACK_DATA/` directory
+4. No code changes required - the integration automatically uses new data
+
+<Note>
+  MITRE ATT&CK typically releases major updates twice per year with new techniques and updates.
+</Note>
+
+## Testing
+
+Comprehensive test coverage ensures reliability:
+
+```python test_mitre_attack.py
+def test_fetch_enterprise_data():
+    """Test fetching enterprise attack data."""
+    mock_data = '{"objects": [{"type": "attack-pattern"}]}'
+    
+    with patch('builtins.open', mock_open(read_data=mock_data)):
+        result = fetch_mitre_attack_data("Web application")
+        assert result is not None
+        assert "objects" in result
+        assert len(result["objects"]) == 1
+
+def test_map_attack_pattern_to_technique():
+    """Test mapping attack patterns to MITRE techniques."""
+    stix_data = {
+        "objects": [
+            {
+                "type": "attack-pattern",
+                "id": "attack-pattern--1",
+                "external_references": [
+                    {
+                        "source_name": "mitre-attack",
+                        "external_id": "T1234"
+                    }
+                ]
+            }
+        ]
+    }
+    
+    result = map_attack_pattern_to_technique(stix_data)
+    assert result == {"attack-pattern--1": "T1234"}
+```
+
+Run tests with:
+```bash
+pytest tests/test_mitre_attack.py -v
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Meaningful Keywords" icon="tags">
+    Use specific, technical keywords that match MITRE technique descriptions
+  </Card>
+  
+  <Card title="Update Data Regularly" icon="arrow-rotate-right">
+    Download fresh MITRE ATT&CK data every 6 months for new techniques
+  </Card>
+  
+  <Card title="Monitor OpenAI Costs" icon="dollar-sign">
+    Each threat requires one OpenAI API call - budget accordingly
+  </Card>
+  
+  <Card title="Cache Results" icon="floppy-disk">
+    Store technique mappings to avoid re-processing identical threats
+  </Card>
+</CardGroup>
+
+## MITRE ATT&CK Resources
+
+- [MITRE ATT&CK Website](https://attack.mitre.org/)
+- [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/)
+- [STIX Data Repository](https://github.com/mitre-attack/attack-stix-data)
+- [ATT&CK Training](https://attack.mitre.org/resources/training/)
+- [Technique Matrix](https://attack.mitre.org/matrices/enterprise/)
+
+## Technique ID Reference
+
+Common technique IDs you may encounter:
+
+| Technique ID | Name | Tactic |
+|--------------|------|--------|
+| T1190 | Exploit Public-Facing Application | Initial Access |
+| T1078 | Valid Accounts | Initial Access, Persistence |
+| T1059 | Command and Scripting Interpreter | Execution |
+| T1486 | Data Encrypted for Impact | Impact |
+| T1071 | Application Layer Protocol | Command and Control |
+| T1566 | Phishing | Initial Access |
+| T1055 | Process Injection | Privilege Escalation |
+| T1082 | System Information Discovery | Discovery |
+
+<Info>
+  Explore the full technique catalog at [attack.mitre.org](https://attack.mitre.org/techniques/enterprise/)
+</Info>

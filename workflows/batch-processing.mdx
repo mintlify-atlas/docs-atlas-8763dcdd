@@ -1,0 +1,395 @@
+---
+title: "Batch Processing"
+description: "Automated generation of multiple threat models for research, validation, and comparative analysis"
+---
+
+# Batch Processing
+
+AegisShield includes a batch processing mode (`main-batch.py`) designed for research purposes, enabling automated generation of multiple threat models without manual UI interaction.
+
+## Overview
+
+Batch processing was developed to support the empirical validation of AegisShield's effectiveness by generating 540 threat models across 15 case studies (30 batches per case study).
+
+<Note>
+The `main-batch.py` script is included for research transparency and reproducibility. General users typically use the interactive UI (`main.py`) instead.
+</Note>
+
+<CardGroup cols={3}>
+  <Card title="Automated" icon="robot">
+    No manual interaction required
+  </Card>
+  <Card title="Parallel Processing" icon="gears">
+    Configurable worker threads
+  </Card>
+  <Card title="Reproducible" icon="repeat">
+    Consistent results for validation
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Research Validation" icon="flask">
+    Generate multiple threat models for the same application to assess:
+    - Consistency across runs
+    - Coverage of threat categories
+    - Quality of MITRE ATT&CK mappings
+    - Comparison with expert-developed models
+  </Accordion>
+  
+  <Accordion title="Comparative Analysis" icon="scale-balanced">
+    Compare threat models across:
+    - Different application types
+    - Various industry sectors
+    - Technology stack variations
+    - Complexity levels
+  </Accordion>
+  
+  <Accordion title="Data Collection" icon="database">
+    Systematically collect threat modeling data for:
+    - Statistical analysis
+    - Machine learning training
+    - Threat pattern identification
+    - Security metrics development
+  </Accordion>
+  
+  <Accordion title="Regression Testing" icon="vial">
+    Validate that code changes don't affect:
+    - Threat generation quality
+    - MITRE ATT&CK mapping accuracy
+    - Integration with threat intelligence sources
+  </Accordion>
+</AccordionGroup>
+
+## Batch Input Structure
+
+Batch inputs are JSON files in the `batch_inputs/` directory:
+
+```json Case-Study-1-schema.json structure
+{
+  "case_study": "Case Study 1",
+  "description": "Visual Sensor Network (VSN) for smart city infrastructure monitoring...",
+  "app_type": "IoT application",
+  "industry_sector": "Technology",
+  "authentication": "Certificate-based authentication, Pre-shared keys",
+  "internet_facing": "Yes",
+  "sensitive_data": "High",
+  "organization_size": "Large",
+  "technical_capability": "High",
+  "technologies": {
+    "databases": [{"name": "MongoDB", "version": "5.0"}],
+    "operating_systems": [{"name": "Ubuntu", "version": "20.04"}],
+    "languages": [{"name": "Python", "version": "3.9"}],
+    "frameworks": [{"name": "Flask", "version": "2.0"}]
+  },
+  "batches": 30,
+  "output_dir": "batch_outputs/"
+}
+```
+
+<ParamField path="case_study" type="string" required>
+  Identifier for the case study
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Detailed application description
+</ParamField>
+
+<ParamField path="app_type" type="string" required>
+  Application type (must match step2_technology.py options)
+</ParamField>
+
+<ParamField path="industry_sector" type="string" required>
+  Industry sector (must match step2_technology.py options)
+</ParamField>
+
+<ParamField path="technologies" type="object" required>
+  Technology stack with specific versions
+</ParamField>
+
+<ParamField path="batches" type="integer" default="30">
+  Number of threat models to generate
+</ParamField>
+
+<ParamField path="output_dir" type="string" default="batch_outputs/">
+  Directory for output files
+</ParamField>
+
+## Batch Output Structure
+
+Generated outputs are JSON files with comprehensive results:
+
+```json Case-Study-1-results.json structure
+{
+  "case_study": "Case Study 1",
+  "timestamp": "2024-03-11T10:30:45Z",
+  "batches": [
+    {
+      "batch_id": 1,
+      "threats": [
+        {
+          "Threat Type": "Spoofing",
+          "Scenario": "An attacker could...",
+          "Assumptions": [...],
+          "Potential Impact": "...",
+          "MITRE ATT&CK Keywords": ["..."],
+          "mitre_technique": {
+            "name": "Exploit Public-Facing Application",
+            "id": "attack-pattern--...",
+            "technique_id": "T1190"
+          }
+        },
+        // ... 17 more threats (3 per STRIDE category)
+      ],
+      "nvd_data": [...],
+      "otx_data": [...],
+      "dread_assessment": [...],
+      "mitigations": "...",
+      "test_cases": "...",
+      "attack_tree": "..."
+    },
+    // ... 29 more batches
+  ],
+  "summary": {
+    "total_batches": 30,
+    "successful": 30,
+    "failed": 0,
+    "average_threats_per_batch": 18,
+    "unique_mitre_techniques": 42
+  }
+}
+```
+
+## Configuration
+
+Batch processing supports configuration:
+
+```python main-batch.py configuration
+CONFIG = {
+    "batches": 30,  # Number of threat models per case study
+    "workers": 3,   # Parallel worker threads
+    "retry_attempts": 3,  # Retries on API failure
+    "delay_between_batches": 2,  # Seconds between batches
+    "save_intermediate": True,  # Save after each batch
+    "validate_output": True  # Validate JSON structure
+}
+```
+
+<Warning>
+Higher worker counts increase throughput but may hit API rate limits. Start with 1-3 workers and increase cautiously.
+</Warning>
+
+## Running Batch Processing
+
+<Steps>
+  <Step title="Prepare Input Files">
+    Create JSON input files in `batch_inputs/` directory:
+    
+    ```bash
+    ls batch_inputs/
+    Case-Study-1-schema.json
+    Case-Study-2-schema.json
+    ...
+    Case-Study-15-schema.json
+    ```
+  </Step>
+  
+  <Step title="Configure API Keys">
+    Set up API keys in `local_config.py`:
+    
+    ```python local_config.py
+    default_nvd_api_key = "your-nvd-key"
+    default_openai_api_key = "your-openai-key"
+    default_alienvault_api_key = "your-alienvault-key"
+    ```
+  </Step>
+  
+  <Step title="Run Batch Script">
+    Execute the batch processing script:
+    
+    ```bash
+    python main-batch.py --input batch_inputs/Case-Study-1-schema.json
+    ```
+    
+    Or process all case studies:
+    
+    ```bash
+    for file in batch_inputs/*.json; do
+        python main-batch.py --input "$file"
+    done
+    ```
+  </Step>
+  
+  <Step title="Monitor Progress">
+    The script provides progress updates:
+    
+    ```text
+    [2024-03-11 10:30:45] Starting batch processing for Case Study 1
+    [2024-03-11 10:30:46] Batch 1/30: Generating threat model...
+    [2024-03-11 10:31:15] Batch 1/30: Complete (29s)
+    [2024-03-11 10:31:17] Batch 2/30: Generating threat model...
+    ...
+    [2024-03-11 11:15:30] All batches complete. Output: batch_outputs/Case-Study-1-results.json
+    ```
+  </Step>
+  
+  <Step title="Validate Results">
+    Check output files for completeness:
+    
+    ```python
+    import json
+    
+    with open('batch_outputs/Case-Study-1-results.json') as f:
+        results = json.load(f)
+    
+    print(f"Total batches: {len(results['batches'])}")
+    print(f"Successful: {results['summary']['successful']}")
+    print(f"Failed: {results['summary']['failed']}")
+    ```
+  </Step>
+</Steps>
+
+## Command-Line Options
+
+```bash Usage
+python main-batch.py [OPTIONS]
+
+Options:
+  --input FILE          Input JSON schema file (required)
+  --output DIR          Output directory (default: batch_outputs/)
+  --batches N           Number of batches to generate (overrides input file)
+  --workers N           Number of parallel workers (default: 3)
+  --retry N             Retry attempts on failure (default: 3)
+  --delay SECONDS       Delay between batches (default: 2)
+  --validate            Validate output structure (default: true)
+  --verbose             Enable verbose logging
+  --help                Show this message and exit
+```
+
+## Error Handling
+
+Batch processing includes comprehensive error handling:
+
+```python Error handling patterns
+try:
+    threat_model = generate_threat_model(input_data)
+except OpenAIRateLimitError as e:
+    logger.warning(f"Rate limit hit. Waiting 60s...")
+    time.sleep(60)
+    threat_model = generate_threat_model(input_data)  # Retry
+except Exception as e:
+    logger.error(f"Batch {batch_id} failed: {str(e)}")
+    failed_batches.append(batch_id)
+    continue  # Skip to next batch
+```
+
+<Accordion title="Common Errors" icon="triangle-exclamation">
+  **Rate Limit Errors:**
+  - Wait 60 seconds between retries
+  - Reduce worker count
+  - Upgrade OpenAI API tier
+  
+  **Validation Errors:**
+  - Check input JSON schema
+  - Ensure all required fields present
+  - Verify technology names match options
+  
+  **Timeout Errors:**
+  - Increase timeout in configuration
+  - Simplify application description
+  - Check network connectivity
+</Accordion>
+
+## Analysis Examples
+
+Analyze batch results:
+
+```python Threat coverage analysis
+import json
+from collections import Counter
+
+# Load results
+with open('batch_outputs/Case-Study-1-results.json') as f:
+    results = json.load(f)
+
+# Count threats by type
+threat_types = []
+for batch in results['batches']:
+    for threat in batch['threats']:
+        threat_types.append(threat['Threat Type'])
+
+counts = Counter(threat_types)
+print("Threat Type Distribution:")
+for threat_type, count in counts.items():
+    print(f"  {threat_type}: {count} ({count/len(threat_types)*100:.1f}%)")
+
+# Expected output:
+# Threat Type Distribution:
+#   Spoofing: 90 (16.7%)
+#   Tampering: 90 (16.7%)
+#   Repudiation: 90 (16.7%)
+#   Information Disclosure: 90 (16.7%)
+#   Denial of Service: 90 (16.7%)
+#   Elevation of Privilege: 90 (16.7%)
+```
+
+```python MITRE technique frequency
+import json
+from collections import Counter
+
+# Load results
+with open('batch_outputs/Case-Study-1-results.json') as f:
+    results = json.load(f)
+
+# Count MITRE techniques
+techniques = []
+for batch in results['batches']:
+    for threat in batch['threats']:
+        if 'mitre_technique' in threat:
+            tech_id = threat['mitre_technique']['technique_id']
+            techniques.append(tech_id)
+
+counts = Counter(techniques)
+print("\nTop 10 MITRE ATT&CK Techniques:")
+for tech_id, count in counts.most_common(10):
+    print(f"  {tech_id}: {count} times")
+```
+
+## Research Methodology
+
+For AegisShield's validation study:
+
+1. **15 Case Studies** from diverse domains (finance, healthcare, IoT, etc.)
+2. **30 Batches** per case study for statistical significance
+3. **540 Total Threat Models** generated
+4. **Comparative Analysis** against expert-developed models
+5. **Quality Metrics**: STRIDE coverage, MITRE mapping accuracy, threat relevance
+
+See [Research Methodology](/guides/research-methodology) for complete details.
+
+## Performance Optimization
+
+<CardGroup cols={2}>
+  <Card title="Parallel Workers" icon="gears">
+    Use 3-5 workers for optimal throughput without hitting rate limits.
+  </Card>
+  
+  <Card title="Batch Size" icon="layer-group">
+    Process 5-10 case studies at a time. Don't try to process all 15 simultaneously.
+  </Card>
+  
+  <Card title="Intermediate Saves" icon="floppy-disk">
+    Enable `save_intermediate` to avoid losing progress on failures.
+  </Card>
+  
+  <Card title="Rate Limiting" icon="gauge">
+    Add 2-3 second delays between batches to respect API limits.
+  </Card>
+</CardGroup>
+
+## Related Resources
+
+- [Case Studies](/guides/case-studies) - Details on the 15 validation case studies
+- [Research Methodology](/guides/research-methodology) - Complete research context
+- [Configuration](/guides/configuration) - API key and environment setup

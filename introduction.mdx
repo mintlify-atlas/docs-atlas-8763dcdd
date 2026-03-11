@@ -1,0 +1,132 @@
+---
+title: "Introduction"
+description: "AI-powered threat modeling tool that democratizes cybersecurity with STRIDE methodology, MITRE ATT&CK integration, and NIST compliance"
+---
+
+# Welcome to AegisShield
+
+AegisShield is an enterprise-ready threat modeling tool designed to democratize the threat modeling process while meeting federal and enterprise compliance requirements. Leveraging GPT-4o and integrating with multiple threat intelligence sources, AegisShield provides comprehensive threat analysis with **NIST SP 800-53 Rev. 5 compliance** and **FedRAMP readiness**.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get up and running with AegisShield in minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Install and configure AegisShield for your environment
+  </Card>
+  <Card title="7-Step Workflow" icon="list-check" href="/workflows/seven-step-process">
+    Learn the guided threat modeling process
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/threat-model">
+    Explore the complete API documentation
+  </Card>
+</CardGroup>
+
+## Core Capabilities
+
+<CardGroup cols={3}>
+  <Card title="AI-Powered Analysis" icon="brain">
+    GPT-4o generates comprehensive STRIDE-based threat models tailored to your application
+  </Card>
+  <Card title="Threat Intelligence" icon="shield-halved">
+    Real-time integration with MITRE ATT&CK, NVD, and AlienVault OTX
+  </Card>
+  <Card title="NIST Compliance" icon="badge-check">
+    15 implemented NIST SP 800-53 Rev. 5 controls with FedRAMP readiness
+  </Card>
+  <Card title="Risk Assessment" icon="chart-line">
+    DREAD methodology for threat prioritization and risk scoring
+  </Card>
+  <Card title="Attack Trees" icon="sitemap">
+    Visual attack tree generation with Mermaid diagrams
+  </Card>
+  <Card title="Test Cases" icon="vial">
+    Automated security test case generation in Gherkin format
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<AccordionGroup>
+  <Accordion title="Interactive 7-Step Process" icon="stairs">
+    A guided workflow takes you from application description through technology selection, threat modeling, risk assessment, and PDF report generation. No prior threat modeling expertise required.
+  </Accordion>
+  
+  <Accordion title="Multi-Source Threat Intelligence" icon="network-wired">
+    - **MITRE ATT&CK Framework**: Direct integration with STIX repository for threat tactics and techniques
+    - **National Vulnerability Database (NVD)**: Real-time vulnerability scanning with CPE-based version tracking
+    - **AlienVault OTX**: Industry-specific threat intelligence and indicators of compromise
+  </Accordion>
+  
+  <Accordion title="Comprehensive Coverage" icon="globe">
+    Supports web, mobile, desktop, cloud, IoT, ICS/SCADA, and AI/ML systems across finance, healthcare, government, and technology industries with HIPAA, GDPR, SOC 2, and other regulatory framework alignment.
+  </Accordion>
+  
+  <Accordion title="Enterprise Integration" icon="building">
+    Machine-readable control mappings enable integration with GRC tools like ServiceNow and RSA Archer. Complete audit trails provide traceability for compliance assessments.
+  </Accordion>
+</AccordionGroup>
+
+## Technology Coverage
+
+AegisShield provides specialized threat modeling for diverse application types:
+
+- **Web Applications**: React, Vue, Angular, Flask, Django, Rails, Express
+- **Mobile Applications**: iOS, Android, React Native, Flutter
+- **Cloud Platforms**: AWS, Azure, GCP, Kubernetes, Docker
+- **Databases**: PostgreSQL, MongoDB, MySQL, Redis, Elasticsearch
+- **ICS/SCADA**: Industrial control systems and critical infrastructure
+- **AI/ML Systems**: Machine learning models and AI applications
+
+## Compliance & Security
+
+<Note>
+AegisShield implements **15 NIST SP 800-53 Rev. 5 security controls** across 6 control families, making it suitable for federal and enterprise environments requiring compliance with cybersecurity frameworks.
+</Note>
+
+**Implemented Control Families:**
+- Access Control (AC)
+- Identification and Authentication (IA)
+- System and Communications Protection (SC)
+- System and Information Integrity (SI)
+- Audit and Accountability (AU)
+- Risk Assessment (RA)
+
+## Get Started
+
+<Steps>
+  <Step title="Install Dependencies">
+    Install Python 3.12 and required packages
+    ```bash
+    pip install -r requirements.txt
+    ```
+  </Step>
+  
+  <Step title="Configure API Keys">
+    Set up your OpenAI, NVD, and AlienVault API keys
+    ```python local_config.py
+    default_nvd_api_key="YOUR_NVD_KEY"
+    default_openai_api_key="YOUR_OPENAI_KEY"
+    default_alienvault_api_key="YOUR_ALIENVAULT_KEY"
+    ```
+  </Step>
+  
+  <Step title="Launch Application">
+    Start the Streamlit interface
+    ```bash
+    streamlit run main.py
+    ```
+  </Step>
+</Steps>
+
+<Card title="Ready to start?" icon="arrow-right" href="/quickstart" horizontal>
+  Follow the quickstart guide to create your first threat model
+</Card>
+
+## License & Acknowledgements
+
+AegisShield is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). Portions of code adapted from [stride-gpt](https://github.com/mrwadams/stride-gpt) under MIT license.
+
+<Info>
+This project is not affiliated with or endorsed by MITRE, AlienVault, NIST, or any other organization mentioned. All trademarks are property of their respective owners.
+</Info>

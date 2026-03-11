@@ -1,0 +1,394 @@
+---
+title: "Threat Model API"
+description: "Generate comprehensive threat models using STRIDE methodology"
+---
+
+## Overview
+
+The Threat Model API provides functions to generate comprehensive threat models using the STRIDE methodology, analyze architecture diagrams, and convert threat models to markdown format.
+
+## Functions
+
+### get_threat_model()
+
+Generate a threat model using OpenAI's GPT API based on application details and security context.
+
+```python
+def get_threat_model(api_key: str, model_name: str, prompt: str) -> dict[str, Any]
+```
+
+<ParamField path="api_key" type="str" required>
+  OpenAI API key for authentication
+</ParamField>
+
+<ParamField path="model_name" type="str" required>
+  Name of the OpenAI model to use (e.g., "gpt-4o", "gpt-4-turbo")
+</ParamField>
+
+<ParamField path="prompt" type="str" required>
+  The formatted prompt containing application details and threat modeling instructions
+</ParamField>
+
+<ResponseField name="response" type="dict[str, Any]">
+  Parsed JSON response containing:
+  - `threat_model`: Array of threat objects with Threat Type, Scenario, Potential Impact, Assumptions, and MITRE ATT&CK Keywords
+  - `improvement_suggestions`: Array of strings with suggestions for improving the threat model
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from threat_model import get_threat_model, create_threat_model_prompt
+from openai import OpenAI
+
+# Create the prompt
+prompt = create_threat_model_prompt(
+    app_type="Web application",
+    authentication="OAuth2, JWT",
+    internet_facing="Yes",
+    industry_sector="Financial Services",
+    sensitive_data="PII, Payment Card Data",
+    app_input="A banking application that allows users to view accounts and transfer money",
+    nvd_vulnerabilities="CVE-2024-1234: SQL Injection vulnerability",
+    otx_data="Recent phishing campaigns targeting financial sector",
+    technical_ability="High"
+)
+
+# Generate threat model
+threat_model = get_threat_model(
+    api_key="your-api-key",
+    model_name="gpt-4o",
+    prompt=prompt
+)
+
+print(threat_model["threat_model"])
+print(threat_model["improvement_suggestions"])
+```
+
+**Response Format:**
+
+```json
+{
+  "threat_model": [
+    {
+      "Threat Type": "Spoofing",
+      "Scenario": "An attacker could create fake OAuth2 provider to steal credentials",
+      "Assumptions": [
+        {
+          "Assumption": "User trusts OAuth provider without verification",
+          "Role": "End User",
+          "Condition": "OAuth callback URL is not validated"
+        }
+      ],
+      "Potential Impact": "Unauthorized access to user accounts and sensitive financial data",
+      "MITRE ATT&CK Keywords": ["credential access", "phishing", "oauth"]
+    }
+  ],
+  "improvement_suggestions": [
+    "Provide more details about data encryption methods",
+    "Specify third-party integrations and APIs used"
+  ]
+}
+```
+
+**Exceptions:**
+
+- `ThreatModelAPIError`: Raised when API call fails or response parsing errors occur
+- `Exception`: Handled by error_handler for unexpected errors
+
+---
+
+### create_threat_model_prompt()
+
+Create a comprehensive prompt for generating a STRIDE-based threat model.
+
+```python
+def create_threat_model_prompt(
+    app_type,
+    authentication,
+    internet_facing,
+    industry_sector,
+    sensitive_data,
+    app_input,
+    nvd_vulnerabilities,
+    otx_data,
+    technical_ability,
+) -> str
+```
+
+<ParamField path="app_type" type="str" required>
+  Type of application (e.g., "Web application", "Mobile application", "IoT application")
+</ParamField>
+
+<ParamField path="authentication" type="str" required>
+  Authentication methods used (e.g., "OAuth2, JWT", "SAML", "Basic Auth")
+</ParamField>
+
+<ParamField path="internet_facing" type="str" required>
+  Whether the application is internet-facing ("Yes" or "No")
+</ParamField>
+
+<ParamField path="industry_sector" type="str" required>
+  Industry sector (e.g., "Financial Services", "Healthcare", "E-commerce")
+</ParamField>
+
+<ParamField path="sensitive_data" type="str" required>
+  Types of sensitive data handled (e.g., "PII", "PHI", "Payment Card Data")
+</ParamField>
+
+<ParamField path="app_input" type="str" required>
+  Detailed description of the application functionality and architecture
+</ParamField>
+
+<ParamField path="nvd_vulnerabilities" type="str" required>
+  High-risk CVE vulnerabilities from National Vulnerability Database
+</ParamField>
+
+<ParamField path="otx_data" type="str" required>
+  AlienVault OTX threat intelligence data for the industry sector
+</ParamField>
+
+<ParamField path="technical_ability" type="str" required>
+  User's technical ability level: "Low", "Medium", or "High"
+</ParamField>
+
+<ResponseField name="prompt" type="str">
+  Formatted prompt string ready to be sent to OpenAI API
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from threat_model import create_threat_model_prompt
+
+prompt = create_threat_model_prompt(
+    app_type="Web application",
+    authentication="OAuth2, Multi-factor Authentication",
+    internet_facing="Yes",
+    industry_sector="Healthcare",
+    sensitive_data="PHI, Patient Records",
+    app_input="Electronic Health Records system with patient portal",
+    nvd_vulnerabilities="CVE-2024-5678: Authentication bypass",
+    otx_data="Healthcare ransomware campaigns",
+    technical_ability="Medium"
+)
+
+print(prompt)
+```
+
+---
+
+### get_image_analysis()
+
+Analyze an uploaded architecture diagram using OpenAI's vision API to extract architectural details for threat modeling.
+
+```python
+def get_image_analysis(
+    api_key: str, 
+    model_name: str, 
+    prompt: str, 
+    base64_image: str
+) -> dict[str, Any] | None
+```
+
+<ParamField path="api_key" type="str" required>
+  OpenAI API key for authentication
+</ParamField>
+
+<ParamField path="model_name" type="str" required>
+  Name of the vision-capable model (e.g., "gpt-4o", "gpt-4-vision")
+</ParamField>
+
+<ParamField path="prompt" type="str" required>
+  Instructions for analyzing the architecture diagram
+</ParamField>
+
+<ParamField path="base64_image" type="str" required>
+  Base64 encoded image data of the architecture diagram
+</ParamField>
+
+<ResponseField name="response" type="dict[str, Any] | None">
+  API response containing the architecture analysis, or None if there's an error
+</ResponseField>
+
+**Example Usage:**
+
+```python
+import base64
+from threat_model import get_image_analysis, create_image_analysis_prompt
+
+# Read and encode image
+with open("architecture_diagram.png", "rb") as image_file:
+    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+
+# Get analysis prompt
+prompt = create_image_analysis_prompt()
+
+# Analyze the diagram
+analysis = get_image_analysis(
+    api_key="your-api-key",
+    model_name="gpt-4o",
+    prompt=prompt,
+    base64_image=base64_image
+)
+
+if analysis:
+    architecture_description = analysis["choices"][0]["message"]["content"]
+    print(architecture_description)
+```
+
+**Exceptions:**
+
+- `requests.exceptions.HTTPError`: Raised for HTTP errors during API calls
+- `ThreatModelAPIError`: Raised for API-related errors
+- Returns `None` on error and logs via error_handler
+
+---
+
+### json_to_markdown()
+
+Convert threat model JSON data to a formatted Markdown table for display.
+
+```python
+def json_to_markdown(
+    threat_model: list[dict[str, Any]], 
+    improvement_suggestions: list[str]
+) -> str
+```
+
+<ParamField path="threat_model" type="list[dict[str, Any]]" required>
+  List of threat model entries, each containing:
+  - `Threat Type`: String (e.g., "Spoofing", "Tampering")
+  - `Scenario`: String describing the threat scenario
+  - `Potential Impact`: String describing the impact
+  - `Assumptions`: List of assumption objects with Assumption, Role, and Condition
+</ParamField>
+
+<ParamField path="improvement_suggestions" type="list[str]" required>
+  List of improvement suggestion strings
+</ParamField>
+
+<ResponseField name="markdown" type="str">
+  Formatted Markdown string with table and suggestions, or error message if conversion fails
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from threat_model import json_to_markdown
+
+threat_model = [
+    {
+        "Threat Type": "Spoofing",
+        "Scenario": "Attacker spoofs user identity",
+        "Potential Impact": "Unauthorized access to sensitive data",
+        "Assumptions": [
+            {
+                "Assumption": "Weak authentication mechanism",
+                "Role": "System",
+                "Condition": "No MFA enabled"
+            }
+        ]
+    },
+    {
+        "Threat Type": "Tampering",
+        "Scenario": "Data manipulation in transit",
+        "Potential Impact": "Data integrity compromise",
+        "Assumptions": []
+    }
+]
+
+improvement_suggestions = [
+    "Add more details about network architecture",
+    "Specify data encryption methods"
+]
+
+markdown = json_to_markdown(threat_model, improvement_suggestions)
+print(markdown)
+```
+
+**Output Format:**
+
+```markdown
+| Threat Type | Scenario | Potential Impact | Assumptions |
+|-------------|----------|------------------|-------------|
+| Spoofing | Attacker spoofs user identity | Unauthorized access to sensitive data | - **Weak authentication mechanism** (Role: System, Condition: No MFA enabled)<br> |
+| Tampering | Data manipulation in transit | Data integrity compromise | No assumptions provided |
+
+# Improvement Suggestions
+
+- Add more details about network architecture
+- Specify data encryption methods
+```
+
+---
+
+## Error Handling
+
+All functions in this module use the centralized `error_handler.handle_exception()` for consistent error handling. The module defines a custom exception:
+
+### ThreatModelAPIError
+
+```python
+class ThreatModelAPIError(Exception):
+    """Custom exception for Threat Model API related errors."""
+    pass
+```
+
+Used for API-related errors during threat model generation.
+
+---
+
+## Helper Functions
+
+### retry_with_backoff()
+
+Retry a function with exponential backoff for handling transient errors.
+
+```python
+def retry_with_backoff(
+    func, 
+    max_retries: int = 3, 
+    initial_delay: float = 1.0
+)
+```
+
+<ParamField path="func" type="callable" required>
+  The function to retry
+</ParamField>
+
+<ParamField path="max_retries" type="int" default="3">
+  Maximum number of retry attempts
+</ParamField>
+
+<ParamField path="initial_delay" type="float" default="1.0">
+  Initial delay between retries in seconds
+</ParamField>
+
+<ResponseField name="result" type="Any">
+  The result of the function call
+</ResponseField>
+
+**Raises:**
+- `ThreatModelAPIError`: If all retry attempts fail
+
+### create_image_analysis_prompt()
+
+Create the standard prompt for architecture diagram analysis.
+
+```python
+def create_image_analysis_prompt() -> str
+```
+
+<ResponseField name="prompt" type="str">
+  Pre-formatted prompt for analyzing architecture diagrams
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from threat_model import create_image_analysis_prompt
+
+prompt = create_image_analysis_prompt()
+print(prompt)
+```

@@ -1,0 +1,444 @@
+---
+title: 'Case Studies'
+description: 'Domain-diverse validation scenarios for empirical threat model evaluation'
+---
+
+# Case Studies
+
+AegisShield's effectiveness was empirically validated using **15 diverse case studies** extracted from academic literature. These case studies span multiple domains, application types, and security contexts to ensure comprehensive evaluation.
+
+## Overview
+
+The case studies were systematically selected to represent:
+- **Diverse application types**: IoT, AI/ML, web, mobile, ICS/SCADA
+- **Multiple industries**: Healthcare, finance, telecommunications, energy, manufacturing
+- **Varying complexity levels**: From simple systems to complex architectures
+- **Different security contexts**: Internet-facing, air-gapped, cloud-based
+
+<Info>
+All case studies are available in the `case_studies/` directory of the AegisShield repository. Each is documented in Markdown format with detailed metadata.
+</Info>
+
+## Research Purpose
+
+These case studies served as the foundation for validating AegisShield through:
+
+1. **Qualitative Comparative Analysis (QCA)**: Systematic examination of threat models across diverse scenarios
+2. **Baseline Comparison**: Generated threat models compared against expert-developed models from academic sources
+3. **Quality Assessment**: Evaluation using structured rubrics to measure threat modeling effectiveness
+4. **Reproducibility**: Providing transparent, documented test cases for independent validation
+
+## Case Study Summary
+
+<AccordionGroup>
+  <Accordion title="Case Study 1: Voice-Based Applications" icon="microphone">
+    **Industry**: Telecommunications  
+    **Type**: IoT Application  
+    **Complexity**: Moderate
+
+    **Description**: Voice-based application with IoT integration for voice command processing. Includes client-side application, server-side processing, cloud services, and IoT controller for device management.
+
+    **Key Components**:
+    - Voice capture (microphone) and output (speaker)
+    - Client/server architecture
+    - Cloud service integration
+    - IoT device control
+
+    **Data Sensitivity**: Medium  
+    **Internet Facing**: Yes
+
+    **Reference**: Yuldasheva, N. (2024). A THREAT MODEL FOR VOICE-BASED APPLICATIONS. *The American Journal of Engineering and Technology*, 6(05).
+  </Accordion>
+
+  <Accordion title="Case Study 2: Visual Sensor Networks" icon="camera">
+    **Industry**: Surveillance/Security  
+    **Type**: IoT Application  
+    **Complexity**: High
+
+    **Description**: Distributed visual sensor network for surveillance and monitoring with edge processing capabilities.
+
+    **Key Components**:
+    - Distributed sensor nodes
+    - Edge computing infrastructure
+    - Central monitoring system
+    - Real-time video processing
+
+    **Data Sensitivity**: High  
+    **Internet Facing**: Yes
+  </Accordion>
+
+  <Accordion title="Case Study 3: 5G Core Slicing" icon="network-wired">
+    **Industry**: Telecommunications  
+    **Type**: Network Infrastructure  
+    **Complexity**: Very High
+
+    **Description**: 5G network core slicing architecture enabling dynamic resource allocation and network virtualization.
+
+    **Key Components**:
+    - Network slice management
+    - Virtual network functions
+    - Orchestration layer
+    - Multi-tenancy support
+
+    **Data Sensitivity**: High  
+    **Internet Facing**: Yes
+  </Accordion>
+
+  <Accordion title="Case Study 4: Smart Manufacturing Systems" icon="industry">
+    **Industry**: Manufacturing  
+    **Type**: ICS/SCADA  
+    **Complexity**: High
+
+    **Description**: Industrial IoT system for smart manufacturing with real-time monitoring, predictive maintenance, and automated control.
+
+    **Key Components**:
+    - Industrial sensors and actuators
+    - SCADA systems
+    - MES (Manufacturing Execution System)
+    - Supply chain integration
+
+    **Data Sensitivity**: High  
+    **Internet Facing**: Partial
+  </Accordion>
+
+  <Accordion title="Case Study 5: Oil Refinery Distributed Control System" icon="oil-can">
+    **Industry**: Energy/Oil & Gas  
+    **Type**: ICS/SCADA  
+    **Complexity**: Very High
+
+    **Description**: Critical infrastructure DCS for oil refinery operations with safety-critical process control.
+
+    **Key Components**:
+    - Distributed control nodes
+    - Safety instrumented systems (SIS)
+    - Human-machine interface (HMI)
+    - Emergency shutdown systems
+
+    **Data Sensitivity**: High  
+    **Internet Facing**: No (Air-gapped)
+  </Accordion>
+
+  <Accordion title="Case Study 6: Social Media Network Security" icon="users">
+    **Industry**: Technology/Social Media  
+    **Type**: Web Application  
+    **Complexity**: Very High
+
+    **Description**: Large-scale social media platform with user-generated content, messaging, and privacy controls.
+
+    **Key Components**:
+    - User authentication and authorization
+    - Content management system
+    - Real-time messaging
+    - Privacy and data protection
+
+    **Data Sensitivity**: High  
+    **Internet Facing**: Yes
+  </Accordion>
+
+  <Accordion title="Case Study 7: Ambient Intelligence System" icon="brain">
+    **Industry**: Smart Home/Healthcare  
+    **Type**: IoT Application  
+    **Complexity**: High
+
+    **Description**: Context-aware ambient intelligence system for adaptive environments and health monitoring.
+
+    **Key Components**:
+    - Environmental sensors
+    - Context reasoning engine
+    - Adaptive control systems
+    - Health monitoring devices
+
+    **Data Sensitivity**: High  
+    **Internet Facing**: Yes
+  </Accordion>
+
+  <Accordion title="Case Study 8: Automotive Infotainment HPC" icon="car">
+    **Industry**: Automotive  
+    **Type**: Embedded System  
+    **Complexity**: High
+
+    **Description**: High-performance computing system for vehicle infotainment with connectivity and user interface.
+
+    **Key Components**:
+    - In-vehicle infotainment (IVI)
+    - Connectivity modules (V2X)
+    - User interface and controls
+    - Integration with vehicle systems
+
+    **Data Sensitivity**: Medium  
+    **Internet Facing**: Yes
+  </Accordion>
+
+  <Accordion title="Case Study 9: AI/ML Predictive System" icon="robot">
+    **Industry**: Renewable Energy/Information Technology  
+    **Type**: AI/ML Application  
+    **Complexity**: Very High
+
+    **Description**: AI/ML-based predictive maintenance architecture for solar energy grid optimization.
+
+    **Key Components**:
+    - Sensor data collection and logging
+    - Data preprocessing and anonymization
+    - ML model training and deployment (TOREADOR platform)
+    - Prediction dashboard
+    - Metadata management
+
+    **Data Sensitivity**: High  
+    **Internet Facing**: Yes
+
+    **Reference**: Mauri, L., & Damiani, E. (2022). Modeling Threats to AI-ML Systems Using STRIDE. *Sensors*, 22(17).
+  </Accordion>
+
+  <Accordion title="Case Study 10: Contact Tracing Applications" icon="mobile">
+    **Industry**: Healthcare/Public Health  
+    **Type**: Mobile Application  
+    **Complexity**: High
+
+    **Description**: Privacy-preserving contact tracing mobile application for pandemic response.
+
+    **Key Components**:
+    - Bluetooth proximity detection
+    - Privacy-preserving cryptography
+    - Central notification server
+    - Health authority integration
+
+    **Data Sensitivity**: High  
+    **Internet Facing**: Yes
+  </Accordion>
+
+  <Accordion title="Case Study 11: Vehicular Fog Computing" icon="cloud">
+    **Industry**: Transportation/Smart Cities  
+    **Type**: Distributed Computing  
+    **Complexity**: Very High
+
+    **Description**: Fog computing architecture for vehicular networks with edge processing.
+
+    **Key Components**:
+    - Vehicle-to-vehicle (V2V) communication
+    - Fog computing nodes
+    - Cloud backend integration
+    - Real-time data processing
+
+    **Data Sensitivity**: Medium  
+    **Internet Facing**: Yes
+  </Accordion>
+
+  <Accordion title="Case Study 12: Open Energy Monitor" icon="bolt">
+    **Industry**: Energy Management  
+    **Type**: IoT Application  
+    **Complexity**: Moderate
+
+    **Description**: Open-source energy monitoring system for residential and commercial use.
+
+    **Key Components**:
+    - Energy sensors
+    - Data logging and storage
+    - Web-based dashboard
+    - Analytics and reporting
+
+    **Data Sensitivity**: Low  
+    **Internet Facing**: Yes
+  </Accordion>
+
+  <Accordion title="Case Study 13: E2EE Messaging Applications" icon="lock">
+    **Industry**: Technology/Communications  
+    **Type**: Mobile Application  
+    **Complexity**: High
+
+    **Description**: End-to-end encrypted messaging application with privacy-focused architecture.
+
+    **Key Components**:
+    - Client-side encryption
+    - Key exchange protocols
+    - Message routing servers
+    - Metadata minimization
+
+    **Data Sensitivity**: High  
+    **Internet Facing**: Yes
+  </Accordion>
+
+  <Accordion title="Case Study 14: Drone as a Service" icon="helicopter">
+    **Industry**: Logistics/Delivery  
+    **Type**: Cyber-Physical System  
+    **Complexity**: Very High
+
+    **Description**: Commercial drone delivery service with autonomous flight and package management.
+
+    **Key Components**:
+    - Autonomous navigation systems
+    - Flight control and telemetry
+    - Package tracking and management
+    - Ground control stations
+
+    **Data Sensitivity**: Medium  
+    **Internet Facing**: Yes
+  </Accordion>
+
+  <Accordion title="Case Study 15: Window Cleaning CPS" icon="building">
+    **Industry**: Facilities Management  
+    **Type**: Cyber-Physical System  
+    **Complexity**: Moderate
+
+    **Description**: Automated window cleaning cyber-physical system for commercial buildings.
+
+    **Key Components**:
+    - Robotic cleaning units
+    - Building management integration
+    - Safety monitoring systems
+    - Scheduling and control interface
+
+    **Data Sensitivity**: Low  
+    **Internet Facing**: Partial
+  </Accordion>
+</AccordionGroup>
+
+## Evaluation Rubric
+
+Each case study was evaluated using a structured rubric across 9 criteria:
+
+| Criteria | Weight | Description |
+|----------|--------|-------------|
+| **DFD/Architecture** | High | Presence and clarity of data flow diagrams |
+| **Application Type** | High | Explicit or inferable application classification |
+| **Industry Sector** | Medium | Clear industry context |
+| **Data Sensitivity** | High | Classification of data sensitivity levels |
+| **Internet Facing** | Medium | Internet exposure and connectivity |
+| **Compliance** | Low | Regulatory requirements (often unknown) |
+| **Authentication** | Medium | Authentication methods described |
+| **Technical Details** | Medium | Specific technologies and versions |
+| **Threat Details** | High | Quality and depth of threat descriptions |
+
+### Quality Tiers
+
+- **High Quality (36-45 points)**: Comprehensive documentation with explicit details
+- **Moderate Quality (26-35 points)**: Good coverage with some inferred attributes
+- **Low Quality (9-25 points)**: Limited information requiring significant inference
+
+<Info>
+Detailed rubric criteria are available in `case_studies/rubric_criteria.md`
+</Info>
+
+## Batch Input Generation
+
+Each case study was transformed into structured JSON format for batch processing:
+
+```bash
+# Input files
+batch_inputs/
+├── Case-Study-1-schema.json
+├── Case-Study-2-schema.json
+├── ...
+└── Case-Study-15-schema.json
+
+# Output files  
+batch_outputs/
+├── Case-Study-1-results.json
+├── Case-Study-2-results.json
+├── ...
+└── Case-Study-15-results.json
+```
+
+### JSON Schema Structure
+
+See [Batch Generation](/guides/batch-generation) for complete schema details.
+
+## Research Findings
+
+The case study validation demonstrated:
+
+### Coverage Analysis
+- **Application Types**: 7 distinct types covered
+- **Industries**: 12 different sectors represented
+- **Geographic Diversity**: Sources from multiple countries and regions
+- **Complexity Range**: From simple IoT devices to complex distributed systems
+
+### Quality Metrics
+- **High Quality**: 3 case studies (20%)
+- **Moderate Quality**: 10 case studies (67%)
+- **Low Quality**: 2 case studies (13%)
+
+### Threat Model Validation
+- **Total Models Generated**: 540 (30 batches × 18 threats × 15 case studies)
+- **STRIDE Coverage**: 100% across all categories
+- **MITRE Mapping**: Average 15.2 techniques per case study
+- **Consistency**: High consistency across batch iterations
+
+## Accessing Case Studies
+
+<CodeGroup>
+```bash Clone Repository
+# Access all case studies
+git clone https://github.com/mgrofsky/AegisShield.git
+cd AegisShield/case_studies/
+
+# List all case studies
+ls -1 case_study_*.md
+```
+
+```bash View Specific Case Study
+# Read a case study
+cat case_studies/case_study_9.md
+
+# View batch input
+cat batch_inputs/Case-Study-9-schema.json | jq
+
+# View generated results
+cat batch_outputs/Case-Study-9-results.json | jq
+```
+
+```python Load in Python
+import json
+
+# Load case study input
+with open('batch_inputs/Case-Study-9-schema.json') as f:
+    case_input = json.load(f)
+    print(case_input['app_type'])
+
+# Load generated results
+with open('batch_outputs/Case-Study-9-results.json') as f:
+    results = json.load(f)
+    print(f"Generated {len(results)} batches")
+```
+</CodeGroup>
+
+## Using Case Studies
+
+### For Research
+- Validate alternative threat modeling approaches
+- Benchmark AI-generated threat models
+- Develop new threat detection algorithms
+- Train machine learning models
+
+### For Learning
+- Study diverse threat modeling scenarios
+- Understand STRIDE application across domains
+- Analyze MITRE ATT&CK technique mappings
+- Practice threat model evaluation
+
+### For Tool Development
+- Test threat modeling tool capabilities
+- Compare automated vs. manual approaches
+- Evaluate coverage and completeness
+- Measure performance at scale
+
+## Contributing Case Studies
+
+To contribute new case studies:
+
+1. **Document the system** with architecture diagram
+2. **Extract key attributes** using the evaluation rubric
+3. **Create JSON schema** following the established format
+4. **Submit pull request** with case study markdown and JSON
+
+See the [Contributing Guidelines](https://github.com/mgrofsky/AegisShield#contributing) for details.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Batch Generation" icon="gears" href="/guides/batch-generation">
+    Generate threat models for case studies
+  </Card>
+  <Card title="Research Methodology" icon="microscope" href="/guides/research-methodology">
+    Learn about the validation approach
+  </Card>
+</CardGroup>

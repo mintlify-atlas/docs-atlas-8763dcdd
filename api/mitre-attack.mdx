@@ -1,0 +1,456 @@
+---
+title: "MITRE ATT&CK API"
+description: "Map threats to MITRE ATT&CK techniques and fetch framework data"
+---
+
+## Overview
+
+The MITRE ATT&CK API provides functions to fetch MITRE ATT&CK framework data, process threat models to map threats to relevant techniques, and select the most relevant attack patterns for specific application contexts.
+
+## Configuration Constants
+
+```python
+MAX_TECHNIQUES = 25  # Maximum number of techniques to consider per threat
+RATE_LIMIT_SLEEP_MIN = 0  # Minimum seconds to sleep between API calls
+RATE_LIMIT_SLEEP_MAX = 5  # Maximum seconds to sleep between API calls
+```
+
+## Application Type Categories
+
+```python
+MOBILE_APP_TYPES = [
+    "Mobile application",
+    "5G/Wireless System",
+]
+
+ENTERPRISE_APP_TYPES = [
+    "Desktop application",
+    "Web application",
+    "SaaS application",
+    "Cloud application",
+    "Network application",
+    "AI/ML Systems",
+    "Blockchain and Cryptocurrency Systems",
+    "Messaging application",
+    "HPC System",
+    "Drone as a Service (DaaS) Application",
+]
+
+ICS_APP_TYPES = [
+    "ICS or SCADA System",
+    "Smart Grid Systems",
+    "Industrial Internet of Things (IIoT)",
+    "Cyber-Physical System (CPS)",
+    "Vehicular Fog Computing (VFC)",
+    "Embedded systems",
+    "IoT application",
+    "Fog Computing",
+    "Wearable Devices",
+]
+```
+
+## Functions
+
+### fetch_mitre_attack_data()
+
+Fetch MITRE ATT&CK framework data based on application type. Automatically loads the appropriate dataset(s) for mobile, enterprise, or ICS applications.
+
+```python
+def fetch_mitre_attack_data(app_type: str) -> dict
+```
+
+<ParamField path="app_type" type="str" required>
+  Type of application. Must be one of the values from MOBILE_APP_TYPES, ENTERPRISE_APP_TYPES, or ICS_APP_TYPES constants.
+</ParamField>
+
+<ResponseField name="stix_data" type="dict">
+  The loaded STIX data containing MITRE ATT&CK objects, or None if there was an error.
+  
+  Structure:
+  - `type`: STIX bundle type
+  - `id`: Bundle identifier
+  - `objects`: Array of STIX objects including attack-patterns, tactics, mitigations, etc.
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from mitre_attack import fetch_mitre_attack_data
+
+# Fetch enterprise attack data
+stix_data = fetch_mitre_attack_data("Web application")
+
+if stix_data:
+    print(f"Loaded {len(stix_data['objects'])} MITRE ATT&CK objects")
+    
+    # Count attack patterns
+    attack_patterns = [obj for obj in stix_data['objects'] if obj['type'] == 'attack-pattern']
+    print(f"Found {len(attack_patterns)} attack patterns")
+
+# Fetch mobile + enterprise data
+mobile_stix_data = fetch_mitre_attack_data("Mobile application")
+
+# Fetch ICS + enterprise data
+ics_stix_data = fetch_mitre_attack_data("ICS or SCADA System")
+```
+
+**Data Sources:**
+- Mobile apps: Loads both `mobile-attack.json` and `enterprise-attack.json`
+- Enterprise apps: Loads `enterprise-attack.json`
+- ICS apps: Loads both `ics-attack.json` and `enterprise-attack.json`
+- Unknown types: Defaults to `enterprise-attack.json`
+
+**Exceptions:**
+
+- `FileNotFoundError`: Raised when required MITRE ATT&CK data files are not found
+- `json.JSONDecodeError`: Raised when JSON files have invalid format
+- Handled by `error_handler.handle_exception()` for all exceptions
+
+---
+
+### process_mitre_attack_data()
+
+Process MITRE ATT&CK data to map threats from a threat model to the most relevant attack techniques using AI-powered selection.
+
+```python
+def process_mitre_attack_data(
+    stix_data: dict,
+    threat_model: list,
+    app_details: dict,
+    openai_api_key: str
+) -> list
+```
+
+<ParamField path="stix_data" type="dict" required>
+  The STIX data containing MITRE ATT&CK attack patterns, obtained from `fetch_mitre_attack_data()`
+</ParamField>
+
+<ParamField path="threat_model" type="list" required>
+  List of threats from the threat model. Each threat must contain:
+  - `MITRE ATT&CK Keywords`: List of keywords for matching attack patterns
+  - `Threat Type`: String (e.g., "Spoofing", "Tampering")
+  - `Scenario`: String describing the threat
+</ParamField>
+
+<ParamField path="app_details" type="dict" required>
+  Application context for technique selection. Should contain:
+  - `app_type`: Application type
+  - `industry_sector`: Industry sector
+  - `authentication`: Authentication methods
+  - `internet_facing`: Whether internet-facing
+  - `sensitive_data`: Types of sensitive data
+  - `app_input`: Application description
+</ParamField>
+
+<ParamField path="openai_api_key" type="str" required>
+  OpenAI API key for AI-powered technique selection
+</ParamField>
+
+<ResponseField name="processed_data" type="list">
+  List of processed threat-to-technique mappings. Each entry contains:
+  - `threat`: The original threat object
+  - `mitre_techniques`: Array with the most relevant technique containing:
+    - `name`: Technique name
+    - `description`: Technique description
+    - `id`: STIX attack pattern ID
+    - `technique_id`: MITRE ATT&CK technique ID (e.g., "T1078")
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from mitre_attack import fetch_mitre_attack_data, process_mitre_attack_data
+
+# Fetch MITRE data
+stix_data = fetch_mitre_attack_data("Web application")
+
+# Define threat model
+threat_model = [
+    {
+        "Threat Type": "Spoofing",
+        "Scenario": "Attacker spoofs authentication credentials",
+        "Potential Impact": "Unauthorized access",
+        "MITRE ATT&CK Keywords": ["credential access", "phishing", "authentication"]
+    },
+    {
+        "Threat Type": "Injection",
+        "Scenario": "SQL injection in user input",
+        "Potential Impact": "Data breach",
+        "MITRE ATT&CK Keywords": ["injection", "sql", "exploitation"]
+    }
+]
+
+# Define application details
+app_details = {
+    "app_type": "Web application",
+    "industry_sector": "Financial Services",
+    "authentication": "OAuth2, MFA",
+    "internet_facing": "Yes",
+    "sensitive_data": "PII, Payment data",
+    "app_input": "Online banking application"
+}
+
+# Process and map threats to techniques
+processed_data = process_mitre_attack_data(
+    stix_data=stix_data,
+    threat_model=threat_model,
+    app_details=app_details,
+    openai_api_key="your-api-key"
+)
+
+# Display results
+for item in processed_data:
+    threat = item["threat"]
+    techniques = item["mitre_techniques"]
+    
+    print(f"Threat: {threat['Threat Type']} - {threat['Scenario']}")
+    if techniques:
+        tech = techniques[0]
+        print(f"  Mapped to: {tech['technique_id']} - {tech['name']}")
+        print(f"  Description: {tech['description'][:100]}...")
+    print()
+```
+
+**Output Format:**
+
+```python
+[
+    {
+        "threat": {
+            "Threat Type": "Spoofing",
+            "Scenario": "Attacker spoofs authentication credentials",
+            "Potential Impact": "Unauthorized access",
+            "MITRE ATT&CK Keywords": ["credential access", "phishing", "authentication"]
+        },
+        "mitre_techniques": [
+            {
+                "name": "Valid Accounts",
+                "description": "Adversaries may obtain and abuse credentials...",
+                "id": "attack-pattern--b17a1a56-e99c-403c-8948-561df0cffe81",
+                "technique_id": "T1078"
+            }
+        ]
+    }
+]
+```
+
+**Rate Limiting:**
+
+The function includes automatic rate limiting with random delays (0-5 seconds) between OpenAI API calls to avoid rate limit errors.
+
+**Exceptions:**
+
+- `ValueError`: Raised for invalid STIX data structure or missing application details
+- Returns empty techniques array for individual threat processing errors
+- All exceptions handled by `error_handler.handle_exception()`
+
+---
+
+### map_attack_pattern_to_technique()
+
+Map STIX attack pattern IDs to MITRE ATT&CK technique IDs (e.g., "T1078").
+
+```python
+def map_attack_pattern_to_technique(stix_data: dict) -> dict
+```
+
+<ParamField path="stix_data" type="dict" required>
+  The STIX data containing attack patterns and their external references
+</ParamField>
+
+<ResponseField name="mapping" type="dict">
+  Dictionary mapping attack pattern IDs to MITRE ATT&CK technique IDs.
+  
+  Format: `{"attack-pattern--uuid": "T1234"}`
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from mitre_attack import fetch_mitre_attack_data, map_attack_pattern_to_technique
+
+# Fetch MITRE data
+stix_data = fetch_mitre_attack_data("Web application")
+
+# Create mapping
+mapping = map_attack_pattern_to_technique(stix_data)
+
+print(f"Mapped {len(mapping)} attack patterns to technique IDs")
+
+# Look up a specific attack pattern
+attack_pattern_id = "attack-pattern--b17a1a56-e99c-403c-8948-561df0cffe81"
+if attack_pattern_id in mapping:
+    print(f"Attack pattern {attack_pattern_id} maps to {mapping[attack_pattern_id]}")
+
+# Example output: "Attack pattern ... maps to T1078"
+```
+
+**How It Works:**
+
+1. Iterates through all STIX objects
+2. Filters for `attack-pattern` type objects
+3. Searches external references for `mitre-attack` source
+4. Extracts the `external_id` field (technique ID)
+5. Creates a mapping dictionary
+
+**Exceptions:**
+
+- Returns empty dictionary if STIX data is invalid
+- Handled by `error_handler.handle_exception()` for processing errors
+
+---
+
+### get_relevant_techniques()
+
+Use OpenAI to select the most relevant MITRE ATT&CK technique from a list of candidates.
+
+```python
+def get_relevant_techniques(prompt: str, openai_api_key: str) -> list
+```
+
+<ParamField path="prompt" type="str" required>
+  Formatted prompt created by `create_mitre_prompt()` containing threat details and candidate techniques
+</ParamField>
+
+<ParamField path="openai_api_key" type="str" required>
+  OpenAI API key for authentication
+</ParamField>
+
+<ResponseField name="technique_ids" type="list">
+  List containing a single attack pattern ID (the most relevant one), or a fallback ID if no match found.
+  
+  Format: `["attack-pattern--xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"]`
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from mitre_attack import get_relevant_techniques
+import json
+
+# This function is typically called by process_mitre_attack_data()
+# but can be used directly if needed
+
+app_details = {
+    "app_type": "Web application",
+    "industry_sector": "Financial Services",
+    "authentication": "OAuth2",
+    "internet_facing": "Yes",
+    "sensitive_data": "PII",
+    "app_input": "Banking app"
+}
+
+threat = {
+    "Threat Type": "Credential Access",
+    "Scenario": "Password spraying attack"
+}
+
+techniques = [
+    {
+        "id": "attack-pattern--12345",
+        "name": "Brute Force",
+        "description": "Adversaries may use brute force techniques..."
+    }
+]
+
+prompt = f"""
+Act as a cybersecurity expert in the {app_details['industry_sector']} sector...
+Threat Scenario: {json.dumps(threat, indent=2)}
+MITRE ATT&CK Techniques: {json.dumps(techniques, indent=2)}
+"""
+
+result = get_relevant_techniques(prompt, "your-api-key")
+print(result)  # ["attack-pattern--12345"]
+```
+
+**Response Handling:**
+
+- Cleans markdown code blocks from response
+- Parses JSON array
+- Returns exactly one technique ID
+- Returns fallback ID `["attack-pattern--00000000-0000-0000-0000-000000000000"]` if no match
+
+**Model Used:**
+
+`gpt-4o` (hardcoded in the function)
+
+---
+
+## Helper Functions
+
+### create_mitre_prompt()
+
+Create a detailed prompt for AI-powered technique selection.
+
+```python
+def create_mitre_prompt(
+    app_details: dict,
+    threat: dict,
+    techniques: list
+) -> str
+```
+
+<ParamField path="app_details" type="dict" required>
+  Application context details including app_type, industry_sector, authentication, etc.
+</ParamField>
+
+<ParamField path="threat" type="dict" required>
+  Single threat object from threat model
+</ParamField>
+
+<ParamField path="techniques" type="list" required>
+  Top 25 candidate techniques identified by keyword matching
+</ParamField>
+
+<ResponseField name="prompt" type="str">
+  Formatted prompt for sending to OpenAI API
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from mitre_attack import create_mitre_prompt
+
+app_details = {
+    "app_type": "Web application",
+    "industry_sector": "Healthcare",
+    "authentication": "SAML",
+    "internet_facing": "Yes",
+    "sensitive_data": "PHI",
+    "app_input": "Patient portal"
+}
+
+threat = {
+    "Threat Type": "Data Exfiltration",
+    "Scenario": "Attacker exfiltrates patient records"
+}
+
+techniques = [
+    {
+        "id": "attack-pattern--123",
+        "name": "Exfiltration Over Web Service",
+        "description": "Adversaries may use web services to exfiltrate data..."
+    }
+]
+
+prompt = create_mitre_prompt(app_details, threat, techniques)
+```
+
+---
+
+## Data Files Location
+
+The module expects MITRE ATT&CK data files in the following location:
+
+```
+./MITRE_ATTACK_DATA/
+├── enterprise-attack.json
+├── mobile-attack.json
+└── ics-attack.json
+```
+
+---
+
+## Error Handling
+
+All functions use centralized error handling via `error_handler.handle_exception()` for consistent logging and error reporting.

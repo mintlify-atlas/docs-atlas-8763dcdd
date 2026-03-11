@@ -1,0 +1,461 @@
+---
+title: "Mitigations API"
+description: "Generate mitigation strategies for identified threats"
+---
+
+## Overview
+
+The Mitigations API provides functions to generate comprehensive mitigation strategies and security controls for identified threats, mapped to MITRE ATT&CK techniques and known vulnerabilities.
+
+## Configuration Constants
+
+```python
+DEFAULT_MODEL_NAME = "gpt-4o"
+```
+
+## Functions
+
+### get_mitigations()
+
+Generate comprehensive mitigation strategies using OpenAI's API based on identified threats, MITRE ATT&CK techniques, and vulnerability data.
+
+```python
+def get_mitigations(
+    api_key: str, 
+    model_name: str | None = None, 
+    prompt: str | None = None
+) -> str
+```
+
+<ParamField path="api_key" type="str" required>
+  OpenAI API key for authentication
+</ParamField>
+
+<ParamField path="model_name" type="str | None" default="gpt-4o">
+  Name of the OpenAI model to use. Defaults to `DEFAULT_MODEL_NAME` ("gpt-4o") if not specified
+</ParamField>
+
+<ParamField path="prompt" type="str | None" required>
+  Formatted prompt containing threat data, MITRE ATT&CK mapping, and NVD vulnerabilities. Created using `create_mitigations_prompt()`
+</ParamField>
+
+<ResponseField name="mitigations" type="str">
+  Generated mitigation strategies in Markdown table format, ready for display or export
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from mitigations import get_mitigations, create_mitigations_prompt
+
+# Define threat data
+threats = """
+STRIDE Threats:
+
+1. Spoofing:
+   - Scenario: Attacker impersonates legitimate OAuth2 provider
+   - Potential Impact: Credential theft and unauthorized access
+
+2. Tampering:
+   - Scenario: SQL injection in user input fields
+   - Potential Impact: Data manipulation and unauthorized database access
+
+3. Information Disclosure:
+   - Scenario: API endpoints expose sensitive data without authentication
+   - Potential Impact: Exposure of PII and payment information
+
+4. Denial of Service:
+   - Scenario: API rate limiting not implemented, allowing resource exhaustion
+   - Potential Impact: Service unavailability for legitimate users
+
+5. Elevation of Privilege:
+   - Scenario: Broken access control allows privilege escalation
+   - Potential Impact: Regular users gaining administrative access
+"""
+
+mitre_mapping = """
+MITRE ATT&CK Techniques:
+
+- T1566.002 (Phishing: Spearphishing Link): OAuth provider impersonation
+- T1190 (Exploit Public-Facing Application): SQL injection exploitation
+- T1087 (Account Discovery): API enumeration for data exposure
+- T1498 (Network Denial of Service): Resource exhaustion attacks
+- T1068 (Exploitation for Privilege Escalation): Access control bypass
+"""
+
+nvd_vulnerabilities = """
+Known Vulnerabilities:
+
+CVE-2024-1234: SQL Injection in authentication module (CVSS: 9.8)
+  - Mitigation: Input validation and parameterized queries required
+  
+CVE-2024-5678: Missing Authentication on API endpoints (CVSS: 7.5)
+  - Mitigation: Implement proper authentication and authorization
+  
+CVE-2024-9012: Improper Access Control (CVSS: 8.8)
+  - Mitigation: Implement role-based access control (RBAC)
+"""
+
+# Create prompt
+prompt = create_mitigations_prompt(
+    threats=threats,
+    mitre_mapping=mitre_mapping,
+    nvd_vulnerabilities=nvd_vulnerabilities
+)
+
+# Generate mitigations
+mitigations = get_mitigations(
+    api_key="your-api-key",
+    model_name="gpt-4o",
+    prompt=prompt
+)
+
+print(mitigations)
+
+# Save to file
+with open("mitigation_strategies.md", "w") as f:
+    f.write("# Mitigation Strategies\n\n")
+    f.write(mitigations)
+```
+
+**Output Format:**
+
+The function returns a Markdown table with three columns:
+
+```markdown
+| Threat Type | Scenario | Suggested Mitigation(s) |
+|-------------|----------|-------------------------|
+| Spoofing | Attacker impersonates legitimate OAuth2 provider | Implement OAuth provider validation using trusted certificate authorities. Use OAuth state parameter to prevent CSRF attacks. Implement certificate pinning for mobile applications. Educate users to verify OAuth consent screens. |
+| Tampering | SQL injection in user input fields | Implement parameterized queries or prepared statements for all database interactions. Use Object-Relational Mapping (ORM) frameworks with built-in SQL injection protection. Implement input validation using allowlists. Deploy Web Application Firewall (WAF) with SQL injection rules. Conduct regular code reviews and static analysis. Apply principle of least privilege for database accounts. |
+| Information Disclosure | API endpoints expose sensitive data without authentication | Implement OAuth 2.0 or JWT-based authentication on all API endpoints. Apply authorization checks using role-based access control (RBAC). Encrypt sensitive data at rest using AES-256. Use TLS 1.3 for all data in transit. Implement API rate limiting and monitoring. Remove sensitive data from error messages and logs. Conduct regular API security audits. |
+| Denial of Service | API rate limiting not implemented, allowing resource exhaustion | Implement rate limiting using token bucket or leaky bucket algorithms. Deploy API gateway with DDoS protection. Implement request throttling per user/IP address. Use CAPTCHA for public endpoints. Implement connection limits and timeouts. Deploy auto-scaling infrastructure. Use Content Delivery Network (CDN) for static assets. Implement circuit breaker patterns for backend services. |
+| Elevation of Privilege | Broken access control allows privilege escalation | Implement role-based access control (RBAC) with principle of least privilege. Validate authorization on server-side for every request. Implement proper session management with secure tokens. Use indirect object references to prevent parameter manipulation. Conduct regular penetration testing focused on authorization. Implement audit logging for privilege changes. Use security frameworks with built-in authorization features. |
+```
+
+**Mitigation Characteristics:**
+
+- **Specific**: Tailored to the exact threat scenario
+- **Actionable**: Concrete technical controls and best practices
+- **Layered**: Multiple defense-in-depth strategies per threat
+- **Standards-aligned**: References industry standards and frameworks
+- **Technology-specific**: Includes specific tools and technologies
+- **Comprehensive**: Covers preventive, detective, and corrective controls
+
+**Exceptions:**
+
+- `ValueError`: Raised if API key or prompt is empty
+- `Exception`: Raised for API call errors or response processing failures
+- All exceptions handled by `error_handler.handle_exception()`
+
+---
+
+### create_mitigations_prompt()
+
+Create a comprehensive prompt for generating mitigation strategies based on identified threats and security context.
+
+```python
+def create_mitigations_prompt(
+    threats: str, 
+    mitre_mapping: str, 
+    nvd_vulnerabilities: str
+) -> str
+```
+
+<ParamField path="threats" type="str" required>
+  String containing the list of identified threats from the threat model. This is the primary focus for mitigation generation.
+</ParamField>
+
+<ParamField path="mitre_mapping" type="str" required>
+  String containing the mapping of threats to MITRE ATT&CK framework techniques. Provides context about attack patterns and techniques.
+</ParamField>
+
+<ParamField path="nvd_vulnerabilities" type="str" required>
+  String containing potential vulnerabilities from the National Vulnerability Database (NVD) that could be exploited. Includes CVE details and CVSS scores.
+</ParamField>
+
+<ResponseField name="prompt" type="str">
+  Formatted prompt string ready to be sent to `get_mitigations()`
+</ResponseField>
+
+**Example Usage:**
+
+```python
+from mitigations import create_mitigations_prompt
+
+threats = """
+Identified Threats:
+
+1. Spoofing - OAuth Provider Impersonation:
+   An attacker creates a malicious OAuth2 provider that mimics a legitimate one.
+   Users are tricked into authorizing the fake provider, exposing their credentials.
+   Impact: Account takeover, unauthorized access to user data
+
+2. Tampering - Database Injection:
+   SQL injection vulnerability in search functionality allows direct database manipulation.
+   Attackers can modify, delete, or extract sensitive data.
+   Impact: Data integrity compromise, unauthorized data access
+
+3. Repudiation - Insufficient Audit Logging:
+   Critical actions are not logged, making it impossible to trace malicious activities.
+   Attackers can perform actions without leaving evidence.
+   Impact: Inability to prove security incidents occurred
+
+4. Information Disclosure - API Data Leakage:
+   REST API endpoints return excessive data including sensitive fields not needed by clients.
+   No authentication or authorization on certain endpoints.
+   Impact: Exposure of PII, financial data, and business-sensitive information
+
+5. Denial of Service - Resource Exhaustion:
+   No rate limiting on API endpoints allows attackers to overwhelm the system.
+   Large payload attacks consume server resources.
+   Impact: Service unavailability, degraded performance for all users
+
+6. Elevation of Privilege - Broken Access Control:
+   Users can modify request parameters to access resources belonging to other users.
+   Administrative functions lack proper authorization checks.
+   Impact: Unauthorized access to privileged functions and data
+"""
+
+mitre_mapping = """
+MITRE ATT&CK Technique Mapping:
+
+1. T1566.002 (Phishing: Spearphishing Link)
+   Tactic: Initial Access
+   Related Threat: OAuth provider impersonation
+   Description: Adversaries send spearphishing messages with malicious links
+
+2. T1190 (Exploit Public-Facing Application)
+   Tactic: Initial Access
+   Related Threat: SQL injection
+   Description: Adversaries exploit weaknesses in internet-facing applications
+
+3. T1562.002 (Impair Defenses: Disable Windows Event Logging)
+   Tactic: Defense Evasion
+   Related Threat: Insufficient audit logging
+   Description: Adversaries disable or modify logging to avoid detection
+
+4. T1087 (Account Discovery)
+   Tactic: Discovery
+   Related Threat: API data leakage
+   Description: Adversaries enumerate accounts to understand the environment
+
+5. T1498 (Network Denial of Service)
+   Tactic: Impact
+   Related Threat: Resource exhaustion
+   Description: Adversaries conduct DoS attacks to disrupt availability
+
+6. T1068 (Exploitation for Privilege Escalation)
+   Tactic: Privilege Escalation
+   Related Threat: Broken access control
+   Description: Adversaries exploit software vulnerabilities to gain elevated access
+"""
+
+nvd_vulnerabilities = """
+Relevant CVEs from National Vulnerability Database:
+
+CVE-2024-1234: SQL Injection in User Input Fields
+  CVSS Score: 9.8 (Critical)
+  Description: Improper neutralization of special elements in SQL commands
+  Affected Component: Search and filter functionality
+  Attack Vector: Network, Low Complexity, No Privileges Required
+  
+CVE-2024-5678: Missing Authentication for Critical Function
+  CVSS Score: 7.5 (High)
+  Description: API endpoints lack authentication checks
+  Affected Component: REST API data access layer
+  Attack Vector: Network, Low Complexity, No Privileges Required
+  
+CVE-2024-9012: Improper Authorization
+  CVSS Score: 8.8 (High)
+  Description: Broken object-level authorization allows unauthorized access
+  Affected Component: Resource access control
+  Attack Vector: Network, Low Complexity, Low Privileges Required
+  
+CVE-2024-3456: Uncontrolled Resource Consumption
+  CVSS Score: 6.5 (Medium)
+  Description: No rate limiting allows resource exhaustion
+  Affected Component: API gateway
+  Attack Vector: Network, Low Complexity, No Privileges Required
+"""
+
+prompt = create_mitigations_prompt(
+    threats=threats,
+    mitre_mapping=mitre_mapping,
+    nvd_vulnerabilities=nvd_vulnerabilities
+)
+
+print(prompt)
+```
+
+**Prompt Instructions:**
+
+The generated prompt instructs the AI to:
+
+1. Act as a cybersecurity expert with 20+ years of experience
+2. Use STRIDE threat modeling methodology
+3. Provide mitigations tailored to the specific threat details
+4. Output results in a Markdown table with three columns:
+   - Column A: Threat Type
+   - Column B: Scenario
+   - Column C: Suggested Mitigation(s)
+5. Do NOT use HTML tags (like `<br>`) or bullet points within table cells
+6. Focus on actionable, specific mitigation strategies
+7. Consider defense-in-depth principles
+8. Reference industry standards and best practices
+
+---
+
+## Complete Workflow Example
+
+Integrate mitigation generation with full threat modeling workflow:
+
+```python
+from threat_model import get_threat_model, create_threat_model_prompt
+from mitre_attack import fetch_mitre_attack_data, process_mitre_attack_data
+from dread import get_dread_assessment, create_dread_assessment_prompt
+from mitigations import get_mitigations, create_mitigations_prompt
+
+# Step 1: Generate threat model
+threat_prompt = create_threat_model_prompt(
+    app_type="Web application",
+    authentication="OAuth2, JWT",
+    internet_facing="Yes",
+    industry_sector="Healthcare",
+    sensitive_data="PHI, Patient Records",
+    app_input="Electronic health records system with patient portal",
+    nvd_vulnerabilities="CVE-2024-1234: Auth bypass",
+    otx_data="Healthcare ransomware campaigns",
+    technical_ability="Medium"
+)
+
+threat_model = get_threat_model(
+    api_key="your-api-key",
+    model_name="gpt-4o",
+    prompt=threat_prompt
+)
+
+# Step 2: Map to MITRE ATT&CK
+stix_data = fetch_mitre_attack_data("Web application")
+app_details = {
+    "app_type": "Web application",
+    "industry_sector": "Healthcare",
+    "authentication": "OAuth2, JWT",
+    "internet_facing": "Yes",
+    "sensitive_data": "PHI, Patient Records",
+    "app_input": "Electronic health records system"
+}
+
+mitre_mapped = process_mitre_attack_data(
+    stix_data=stix_data,
+    threat_model=threat_model["threat_model"],
+    app_details=app_details,
+    openai_api_key="your-api-key"
+)
+
+# Step 3: Generate DREAD assessment
+threats_str = "\n".join([
+    f"{i+1}. {t['Threat Type']}: {t['Scenario']}"
+    for i, t in enumerate(threat_model["threat_model"])
+])
+
+mitre_str = "\n".join([
+    f"- {item['mitre_techniques'][0]['technique_id']} ({item['mitre_techniques'][0]['name']}): {item['threat']['Scenario']}"
+    for item in mitre_mapped if item['mitre_techniques']
+])
+
+dread_prompt = create_dread_assessment_prompt(
+    threats=threats_str,
+    mitre_mapping=mitre_str,
+    nvd_vulnerabilities="CVE-2024-1234: Authentication bypass (CVSS: 9.1)"
+)
+
+dread_assessment = get_dread_assessment(
+    api_key="your-api-key",
+    model_name="gpt-4o",
+    prompt=dread_prompt
+)
+
+# Step 4: Generate mitigations
+mitigations_prompt = create_mitigations_prompt(
+    threats=threats_str,
+    mitre_mapping=mitre_str,
+    nvd_vulnerabilities="CVE-2024-1234: Authentication bypass (CVSS: 9.1)"
+)
+
+mitigations = get_mitigations(
+    api_key="your-api-key",
+    model_name="gpt-4o",
+    prompt=mitigations_prompt
+)
+
+# Step 5: Generate comprehensive report
+with open("security_assessment_report.md", "w") as f:
+    f.write("# Comprehensive Security Assessment Report\n\n")
+    f.write("## Executive Summary\n\n")
+    f.write(f"Application: {app_details['app_input']}\n")
+    f.write(f"Industry: {app_details['industry_sector']}\n")
+    f.write(f"Threats Identified: {len(threat_model['threat_model'])}\n\n")
+    
+    f.write("## Threat Model\n\n")
+    for i, threat in enumerate(threat_model["threat_model"], 1):
+        f.write(f"### {i}. {threat['Threat Type']}\n")
+        f.write(f"**Scenario:** {threat['Scenario']}\n\n")
+        f.write(f"**Impact:** {threat['Potential Impact']}\n\n")
+    
+    f.write("## MITRE ATT&CK Mapping\n\n")
+    f.write(mitre_str + "\n\n")
+    
+    f.write("## Risk Assessment (DREAD)\n\n")
+    from dread import dread_json_to_markdown
+    f.write(dread_json_to_markdown(dread_assessment) + "\n\n")
+    
+    f.write("## Recommended Mitigations\n\n")
+    f.write(mitigations + "\n")
+    
+    f.write("\n## Next Steps\n\n")
+    f.write("1. Prioritize mitigations based on DREAD risk scores\n")
+    f.write("2. Implement high-priority security controls\n")
+    f.write("3. Conduct security testing to validate mitigations\n")
+    f.write("4. Update threat model after major changes\n")
+
+print("Comprehensive security assessment report generated: security_assessment_report.md")
+```
+
+---
+
+## Output Formatting Guidelines
+
+**Important Notes:**
+
+1. **No HTML Tags**: The output does NOT use HTML tags like `<br>` for line breaks
+2. **No Bullet Points in Cells**: Multiple mitigations are separated by periods and spaces within a single cell
+3. **Single Table Format**: All mitigations are in a single Markdown table
+4. **Prose Format**: Mitigation strategies are written in complete sentences
+
+**Example of Proper Format:**
+
+```markdown
+| Threat Type | Scenario | Suggested Mitigation(s) |
+|-------------|----------|-------------------------|
+| Spoofing | OAuth impersonation | Implement certificate pinning. Use OAuth state parameter. Validate provider certificates against trusted CAs. Educate users about consent screens. |
+```
+
+**NOT This Format:**
+
+```markdown
+| Threat Type | Scenario | Suggested Mitigation(s) |
+|-------------|----------|-------------------------|
+| Spoofing | OAuth impersonation | - Implement certificate pinning<br>- Use OAuth state parameter<br>- Validate provider certificates |
+```
+
+---
+
+## Error Handling
+
+All functions use centralized error handling via `error_handler.handle_exception()` for consistent logging and error reporting.
+
+**Common Errors:**
+
+- Empty API key or prompt: `ValueError`
+- API call failures: `Exception` with descriptive message
+- Invalid response format: Handled gracefully with logging
