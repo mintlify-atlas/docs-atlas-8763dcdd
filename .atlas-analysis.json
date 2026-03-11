@@ -1,0 +1,153 @@
+{
+  "projectType": "saas",
+  "projectName": "AegisShield",
+  "projectDescription": "AI-powered threat modeling tool that democratizes cybersecurity by generating comprehensive STRIDE-based threat models with MITRE ATT&CK integration and NIST SP 800-53 compliance.",
+  "theme": "aspen",
+  "primaryColor": "#1e3a8a",
+  "lightColor": "#3b82f6",
+  "darkColor": "#0f172a",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/threat-modeling",
+              "features/mitre-attack",
+              "features/risk-assessment",
+              "features/attack-trees",
+              "features/test-cases"
+            ]
+          },
+          {
+            "group": "Threat Intelligence",
+            "pages": [
+              "intelligence/nvd-integration",
+              "intelligence/alienvault-otx",
+              "intelligence/mitre-data"
+            ]
+          },
+          {
+            "group": "Workflows",
+            "pages": [
+              "workflows/seven-step-process",
+              "workflows/batch-processing",
+              "workflows/pdf-reports"
+            ]
+          },
+          {
+            "group": "Compliance",
+            "pages": [
+              "compliance/nist-sp-800-53",
+              "compliance/fedramp",
+              "compliance/grc-integration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core Modules",
+            "pages": [
+              "api/threat-model",
+              "api/mitre-attack",
+              "api/attack-tree",
+              "api/dread",
+              "api/mitigations"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "api/nvd-search",
+              "api/alienvault-search",
+              "api/api-key-handler"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/error-handler",
+              "api/test-cases"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Using AegisShield",
+            "pages": [
+              "guides/application-description",
+              "guides/technology-selection",
+              "guides/interpreting-results",
+              "guides/customization"
+            ]
+          },
+          {
+            "group": "Research & Validation",
+            "pages": [
+              "guides/batch-generation",
+              "guides/case-studies",
+              "guides/research-methodology"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "guides/docker-deployment",
+              "guides/configuration",
+              "guides/troubleshooting"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "AI-powered threat modeling using GPT-4o with STRIDE methodology",
+    "Integration with MITRE ATT&CK, NVD, and AlienVault OTX threat intelligence",
+    "7-step guided workflow from application description to PDF report",
+    "DREAD risk assessment and prioritization",
+    "Attack tree generation with Mermaid visualization",
+    "Security test case generation in Gherkin format",
+    "NIST SP 800-53 Rev. 5 compliance with 15 implemented controls",
+    "FedRAMP and FISMA ready for federal environments",
+    "Batch processing for research and comparative analysis",
+    "Comprehensive PDF report generation"
+  ],
+  "publicApiSurface": [
+    "threat_model.get_threat_model()",
+    "threat_model.create_threat_model_prompt()",
+    "threat_model.get_image_analysis()",
+    "mitre_attack.fetch_mitre_attack_data()",
+    "mitre_attack.process_mitre_attack_data()",
+    "mitre_attack.map_attack_pattern_to_technique()",
+    "attack_tree.get_attack_tree()",
+    "attack_tree.create_attack_tree_prompt()",
+    "dread.get_dread_assessment()",
+    "dread.create_dread_assessment_prompt()",
+    "mitigations.get_mitigations()",
+    "mitigations.create_mitigations_prompt()",
+    "nvd_search.search_nvd()",
+    "alientvault_search.get_otx_data()",
+    "api_key_handler.load_api_keys()",
+    "api_key_handler.render_api_key_inputs()",
+    "test_cases.get_test_cases()",
+    "test_cases.create_test_cases_prompt()",
+    "error_handler.handle_exception()"
+  ]
+}
